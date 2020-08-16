@@ -95,7 +95,7 @@ class Constraints(object):
             "EC: " + str([str(ec) for ec in self.edge_constraints])
 
 class Environment(object):
-    def __init__(self, dimension, agents, obstacles, obstacles_d=[]):
+    def __init__(self, dimension, agents, obstacles, obstacles_d=[], w_l=1.03, alpha1=1, alpha2=1):
         print(obstacles_d)
         self.dimension = dimension
         self.obstacles = obstacles
@@ -110,6 +110,11 @@ class Environment(object):
         self.constraint_dict = {}
 
         self.a_star = AStar(self)
+
+        # AFS part
+        self.w_l = w_l # Bound of lower level
+        self.alpha1 = alpha1 # coefficient of conflict number
+        self.alpha2 = alpha2 # coefficient of dynamic obstacles distance
 
     def get_neighbors(self, state):
         neighbors = []
@@ -136,7 +141,6 @@ class Environment(object):
             neighbors.append(n)
         return neighbors
 
-        
     def get_first_conflict(self, solution):
         max_t = max([len(plan) for plan in solution.values()])
         result = Conflict()
@@ -218,7 +222,6 @@ class Environment(object):
         goal = self.agent_dict[agent_name]["goal"]
         return fabs(state.location.x - goal.location.x) + fabs(state.location.y - goal.location.y)
 
-
     def is_at_goal(self, state, agent_name):
         goal_state = self.agent_dict[agent_name]["goal"]
         return state.is_equal_except_time(goal_state)
@@ -232,22 +235,18 @@ class Environment(object):
 
     def compute_solution(self):
         solution = {}
-
-        # low level bound
-        w_l = 1.01
         start_time = time.time()
         for agent in self.agent_dict.keys():
-            
+            # Get the constraint of this agent
             self.constraints = self.constraint_dict.setdefault(agent, Constraints())
-            # print(self.constraints)
-            local_solution = self.a_star.search(agent, w_l, solution)
-            
+            # Use A* to search ang get the solution for this agent
+            local_solution = self.a_star.search(agent, self.w_l, self.alpha1, self.alpha2, solution, self.obstacles_d)
             if not local_solution:
                 return False
+            # update the solution with this local solution of the agent
             solution.update({agent:local_solution})
         end_time = time.time()
         print('Use time: ' + str(end_time - start_time))
-        
         # output = {}
         # output["schedule"] = self.generate_plan(solution)
         # output["cost"] = 1
@@ -255,8 +254,6 @@ class Environment(object):
         # # write solution to file
         # with open('output_debug.yaml', 'w') as output_yaml:
         #     yaml.safe_dump(output, output_yaml) 
-
-
         return solution
 
     def generate_plan(self, solution):
@@ -291,7 +288,8 @@ class CBS(object):
         # Anytime things
         self.focal_list = []
         self.limited_time = limited_time
-        self.w_h = 1.1 # Bound of high level
+        self.gamma = 0.9 # Decay of bound
+        self.w_h = 1.1 / self.gamma # Bound of high level
 
     def updateFocalBound(self, bound):
         for i in range(len(self.focal_list)):
@@ -299,14 +297,23 @@ class CBS(object):
             if node.cost > bound:
                 self.focal_list.pop(i)
 
+    def updateLowerBound(self, old_bound, new_bound):
+        for new_node in self.open_set:
+            if (new_node.cost > old_bound) and (new_node.cost < new_bound):
+                for i in range(len(self.focal_list)):
+                    node = self.focal_list[i]
+                    if len(new_node.constraint_dict) <= len(node.constraint_dict):
+                        self.focal_list.insert(i, new_node)
+                        break
+                    if i == len(self.focal_list) - 1:
+                        self.focal_list.append(new_node)
+
     def getNextBound(self):
-        gamma = 0.9
-        return self.w_h * gamma
+        return self.w_h * self.gamma
 
     def search(self):
         start = HighLevelNode()
-        # TODO: Initialize it in a better way
-        
+
         # 1. Node.constraint_dict initialization
         start.constraint_dict = {}
         for agent in self.env.agent_dict.keys():
@@ -322,7 +329,6 @@ class CBS(object):
 
         # trivial things preparation
         cnt = 0 # counter
-        is_ordered = False # Has the focal list ordered or not
 
         # OPEN & FOCAL initialization
         self.open_set |= {start}
@@ -330,7 +336,7 @@ class CBS(object):
 
         # TODO: Add the time limitation iteration
         
-        while self.open_set:
+        while self.focal_list:
             # Count number of iterations and print it
             cnt += 1
             if cnt % 1000 == 0  and cnt > 1:
@@ -340,24 +346,27 @@ class CBS(object):
             w_h = self.getNextBound()
 
             # Update Focal list
-            P = min(self.open_set)
-            self.updateFocalBound(w_h * P) # Here, P is the f(head(OPEN))
+            f_min = min(self.open_set).cost
+            self.updateFocalBound(w_h * f_min) # Here, f_min is the f(head(OPEN))
 
-            # Order Focal list if not efficiently reusable (Here, it is. So just order for the first time)
-            if not is_ordered:
-                self.focal_list = sorted(self.focal_list, key=lambda node: len(node.constraint_dict))
+            # Order Focal list if not efficiently reusable (Here, it is. So do nothing)
             
             # Get the expanded state from FOCAL
             P = self.focal_list[0]
 
+            # Delete the node from both OPEN & FOCAL
             self.open_set -= {P}
+            self.focal_list.pop(0)
 
+            # Update environment
             self.env.constraint_dict = P.constraint_dict
-            conflict_dict = self.env.get_first_conflict(P.solution)
-            # print(conflict_dict)
 
+            # Get the first conflict from all agents
+            conflict_dict = self.env.get_first_conflict(P.solution)
+
+            # If there's no conflict for all paths of agents, solution if found!
             if not conflict_dict:
-                if (self.is_add_constraint): # 也就是有decentralized的更新
+                if (self.is_add_constraint): # 也就是有decentralized的更新 | USELESS NOW, self.is_add_constraint === FALSE
                     """
                     做三件事情：
                     1. 把更新过来的constraint加入到新node的constraint list里面，且继承父亲node的constraint list
@@ -390,23 +399,47 @@ class CBS(object):
                     with open('output_debug.yaml', 'w') as output_yaml:
                         yaml.safe_dump(output, output_yaml) 
 
-
                     return self.generate_plan(P.solution)
 
+            # Have conflict, generate constraint dict
             constraint_dict = self.env.create_constraints_from_conflict(conflict_dict)
 
+            # Generate 2 son nodes
             for agent in constraint_dict.keys():
+                # 1. Extend constraint dict from father node
                 new_node = deepcopy(P)
+
+                # 2. Add new constrant to constraint dict according to which agent you choose
                 new_node.constraint_dict[agent].add_constraint(constraint_dict[agent]) 
                 
+                # Update environment constraint
                 self.env.constraint_dict = new_node.constraint_dict # A*就是根据self.env.constraint_dict来得到solution的
+
+                # 3. Update solution with new constraints added
                 new_node.solution = self.env.compute_solution()
                 if not new_node.solution:
                     continue
+
+                # 4. Add cost
                 new_node.cost = self.env.compute_solution_cost(new_node.solution)
 
-                # TODO: ending condition 
+                # Add the son node to open set
                 self.open_set |= {new_node}
+
+                # If it's conform to the standard(cost <= w * f_min), insert it to the focal list by the conflict number
+                if new_node.cost <= w_h * f_min:
+                    for i in range(len(self.focal_list)):
+                        node = self.focal_list[i]
+                        if len(new_node.constraint_dict) <= len(node.constraint_dict):
+                            self.focal_list.insert(i, new_node)
+                            break
+                        if i == len(self.focal_list) - 1:
+                            self.focal_list.append(new_node)
+            
+            # Update the focal list because lower bound of open set is changed, sth may come into the open set~
+            f_min_new = min(self.open_set).cost
+            if (len(self.open_set) != 0) and (self.w_h * f_min < self.w_h * f_min_new):
+                self.updateLowerBound(f_min, f_min_new)
 
         return {}
 
