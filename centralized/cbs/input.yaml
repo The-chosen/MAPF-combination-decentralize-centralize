@@ -20,9 +20,9 @@ agents:
 -   start: [27, 28]
     goal: [7, 27]
     name: agent6
--   start: [8, 20]
-    goal: [10, 5]
-    name: agent7
+# -   start: [8, 20]
+#     goal: [10, 5]
+#     name: agent7
 -   start: [30, 30]
     goal: [5, 12]
     name: agent8
@@ -253,3 +253,6 @@ obstacles:
 -   start: [8, 9]
     goal: [8, 12]
     name: obstacle2
+-   start: [8, 20]
+    goal: [10, 5]
+    name: obstacle3

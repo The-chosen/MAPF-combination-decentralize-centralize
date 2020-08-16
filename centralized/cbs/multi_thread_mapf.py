@@ -14,12 +14,15 @@ import yaml
 from math import fabs
 from itertools import combinations
 from copy import deepcopy
-from cbs.a_star import AStar
+from cbs.a_star_mine import AStar
 
 import time
-from cbs.cbs import *
+import eventlet
+from cbs.cbs_mine import *
 import threading
 from queue import PriorityQueue
+
+# eventlet.monkey_patch()
 
 # Global variables
 pq = PriorityQueue()
@@ -29,8 +32,8 @@ DYNAMIC_OBSTACLES = None
 
 INF_NUM = 999999999999999
 R = 4
-THRESHOLD = 20
-
+THRESHOLD = 25
+TIME_LIMIT = 20
 
 class Server(threading.Thread):
     """
@@ -38,7 +41,7 @@ class Server(threading.Thread):
     把要执行的函数写到run()方法里。如果没有run()方法就会报错。其实这个类的作用就是
     通过haha类里面的run()方法来定义每个启动的子线程要执行的函数内容。
     """
-    def __init__(self, dimension, obstacles, agents, output_file, num_combine=5):
+    def __init__(self, dimension, obstacles, agents, output_file, num_combine=2):
         threading.Thread.__init__(self)
         self.dimension = dimension
         self.obstacles = obstacles
@@ -48,11 +51,12 @@ class Server(threading.Thread):
         self.num_combine = num_combine # Number of conflict list to be combined
 
     def run(self):
-        global alive_agent_thread_num, solution, pq
+        global alive_agent_thread_num, solution, pq, TIME_LIMIT
         
         # Robots start
         while True:
             # agents all finish their paths
+            # print("alive_agent_thread_num: ", alive_agent_thread_num)
             if alive_agent_thread_num == 0:
                 print(solution)
                 output = {}
@@ -66,7 +70,8 @@ class Server(threading.Thread):
             if pq.empty():
                 continue
             else:
-                print('hello')
+                # print('happy')
+                compute_start_time = time.time()
                 # Combine several conflict list & get minimum anytime limitation
                 conflicts = []
                 min_anytime_limitation_timestep = INF_NUM
@@ -91,7 +96,11 @@ class Server(threading.Thread):
                 # Searching
                 cbs = CBS(env, is_add_constraint=False)
                 print('[INFO] Start common searching ...')
+                # with eventlet.Timeout(TIME_LIMIT, False):
                 solution_crr = cbs.search()
+                if not solution_crr:
+                    print('[ERROR] Solution not found!')
+                    continue
                 print('[INFO] Common searching ends')
                 # Get previous solution
                 solution_pre = solution
@@ -103,9 +112,13 @@ class Server(threading.Thread):
 
                 # combine previous solution [:timestep + anytime_limitation] and new solution
                 for agent in solution_pre.keys():
+                    # print("solution_crr: " + str(solution_crr))
+                    # print("solution_pre: " + str(solution_pre))
                     solution_crr[agent] = solution_pre[agent][:min_anytime_limitation_timestep] + (list(map(f, solution_crr[agent]))) 
 
                 solution = solution_crr
+                compute_end_time = time.time()
+                print('Common searching use time: ' + str(compute_end_time - compute_start_time))
 
 class Agent(threading.Thread):
     '''
@@ -134,10 +147,13 @@ class Agent(threading.Thread):
         self.utils = Utils()
 
     def run(self):
-        global alive_agent_thread_num
+        global alive_agent_thread_num, solution
         for timestep in range(self.timesteps):
+            self.paths = deepcopy(solution)
             self.do_things_in_one_timestep(timestep)
         alive_agent_thread_num -= 1
+        print('[INFO] ' + str(self.agent_name) + ' end!')
+
 
     # @return: (conflicts[], anytime_limitation + timestep)
     def do_things_in_one_timestep(self, timestep):
@@ -151,7 +167,7 @@ class Agent(threading.Thread):
             use_time = end_time - start_time
             time.sleep(self.timestep_time - use_time) # ensure the thing will be done within timestep_time
             real_end = time.time()
-            print(self.agent_name + ' finish timestep ' + str(timestep) + '. Use time: ' + str(real_end - start_time))
+            print(self.agent_name + ' finish timestep ' + str(timestep) + '. Use time: ' + str(real_end - start_time) + '. Have collision points.')
             return
         conflict_list_agent, anytime_limitation, min_cost_pt = self.find_constraint_list()
         pq.put((min_cost_pt, conflict_list_agent, anytime_limitation + timestep))
@@ -162,7 +178,7 @@ class Agent(threading.Thread):
         use_time = end_time - start_time
         time.sleep(self.timestep_time - use_time) # ensure the thing will be done within timestep_time
         real_end = time.time()
-        print(self.agent_name + ' finish one step. Use time: ' + str(real_end - start_time))
+        print(self.agent_name + ' finish timestep ' + str(timestep) + '. Use time: ' + str(real_end - start_time) + '. No collision points.')
 
         
         

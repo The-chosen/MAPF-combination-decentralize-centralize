@@ -12,8 +12,8 @@ import yaml
 from math import fabs
 from itertools import combinations
 from copy import deepcopy
-
-from cbs.a_star import AStar
+ 
+from cbs.a_star_mine import AStar
 
 import time
 
@@ -202,7 +202,6 @@ class Environment(object):
             return solution[agent_name][-1]
 
     def state_valid(self, state):
-        # print(self.constraints.vertex_constraints)
         return state.location.x >= 0 and state.location.x < self.dimension[0] \
             and state.location.y >= 0 and state.location.y < self.dimension[1] \
             and VertexConstraint(state.time, state.location) not in self.constraints.vertex_constraints \
@@ -233,21 +232,33 @@ class Environment(object):
 
     def compute_solution(self):
         solution = {}
-        
+
+        # low level bound
+        w_l = 1.01
+        start_time = time.time()
         for agent in self.agent_dict.keys():
             
             self.constraints = self.constraint_dict.setdefault(agent, Constraints())
             # print(self.constraints)
-            local_solution = self.a_star.search(agent)
-            # print(local_solution)
+            local_solution = self.a_star.search(agent, w_l, solution)
             
             if not local_solution:
                 return False
             solution.update({agent:local_solution})
-        # print(solution['agent0'][0])
-        print(self.generate_plan(solution))
+        end_time = time.time()
+        print('Use time: ' + str(end_time - start_time))
+        
+        # output = {}
+        # output["schedule"] = self.generate_plan(solution)
+        # output["cost"] = 1
+        
+        # # write solution to file
+        # with open('output_debug.yaml', 'w') as output_yaml:
+        #     yaml.safe_dump(output, output_yaml) 
+
+
         return solution
-    
+
     def generate_plan(self, solution):
         plan = {}
         for agent, path in solution.items():
@@ -267,37 +278,78 @@ class HighLevelNode(object):
     def __lt__(self, other):
         return self.cost < other.cost
 
+'''
+@limited_time: the time limitation in anytime algorithm
+'''
 class CBS(object):
-    def __init__(self, environment, is_add_constraint=False, decentralized_constraint_list=None):
+    def __init__(self, environment, limited_time=15, is_add_constraint=False, decentralized_constraint_list=None):
         self.env = environment 
         self.is_add_constraint = is_add_constraint
         self.decentralized_constraint_list = decentralized_constraint_list
         self.open_set = set()
+
+        # Anytime things
+        self.focal_list = []
+        self.limited_time = limited_time
+        self.w_h = 1.1 # Bound of high level
+
+    def updateFocalBound(self, bound):
+        for i in range(len(self.focal_list)):
+            node = self.focal_list[i]
+            if node.cost > bound:
+                self.focal_list.pop(i)
+
+    def getNextBound(self):
+        gamma = 0.9
+        return self.w_h * gamma
+
     def search(self):
         start = HighLevelNode()
         # TODO: Initialize it in a better way
         
+        # 1. Node.constraint_dict initialization
         start.constraint_dict = {}
-        
         for agent in self.env.agent_dict.keys():
             start.constraint_dict[agent] = Constraints()
+
+        # 2. Node.solution initialization
         start.solution = self.env.compute_solution()
-    
         if not start.solution:
             return {}
+
+        # 3. Node.cost initialization
         start.cost = self.env.compute_solution_cost(start.solution)
 
-        self.open_set |= {start}
+        # trivial things preparation
+        cnt = 0 # counter
+        is_ordered = False # Has the focal list ordered or not
 
-        cnt = 0
+        # OPEN & FOCAL initialization
+        self.open_set |= {start}
+        self.focal_list.append(start)
+
+        # TODO: Add the time limitation iteration
         
         while self.open_set:
-            
+            # Count number of iterations and print it
             cnt += 1
             if cnt % 1000 == 0  and cnt > 1:
                 print('iteration: ', cnt)
 
+            # Tighten the bound
+            w_h = self.getNextBound()
+
+            # Update Focal list
             P = min(self.open_set)
+            self.updateFocalBound(w_h * P) # Here, P is the f(head(OPEN))
+
+            # Order Focal list if not efficiently reusable (Here, it is. So just order for the first time)
+            if not is_ordered:
+                self.focal_list = sorted(self.focal_list, key=lambda node: len(node.constraint_dict))
+            
+            # Get the expanded state from FOCAL
+            P = self.focal_list[0]
+
             self.open_set -= {P}
 
             self.env.constraint_dict = P.constraint_dict
@@ -321,33 +373,29 @@ class CBS(object):
                     pre_constraint_dict = P.constraint_dict[agent]
                     new_node.constraint_dict[agent].add_constraint(pre_constraint_dict)
                     for agent in self.decentralized_constraint_list.keys():
-                        # print(agent)
-                        # print(self.decentralized_constraint_list[agent])
-                        # print('====')
-
                         new_node.constraint_dict[agent].add_constraint(self.decentralized_constraint_list[agent]) 
-                        # print(new_node.constraint_dict[agent])
-                        # print('====')
                         self.env.constraint_dict = new_node.constraint_dict
                     new_node.solution = self.env.compute_solution()
-                    # if not new_node.solution:
-                    #     continue
                     new_node.cost = self.env.compute_solution_cost(new_node.solution)
                     self.open_set = {new_node}
                     continue
                 else:
                     print("solution found")
                     print('Iteration number: ', cnt)
-                    # print(self.generate_plan(P.solution)['agent4'])
+                    output = {}
+                    output["schedule"] = self.generate_plan(P.solution)
+                    output["cost"] = 1999
+                    
+                    # write solution to file
+                    with open('output_debug.yaml', 'w') as output_yaml:
+                        yaml.safe_dump(output, output_yaml) 
+
+
                     return self.generate_plan(P.solution)
 
             constraint_dict = self.env.create_constraints_from_conflict(conflict_dict)
-            # print(constraint_dict)
-            # print('=============')
 
             for agent in constraint_dict.keys():
-                # print('11111111')
-                # print(constraint_dict[agent])
                 new_node = deepcopy(P)
                 new_node.constraint_dict[agent].add_constraint(constraint_dict[agent]) 
                 
