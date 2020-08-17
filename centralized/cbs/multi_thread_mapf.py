@@ -362,7 +362,7 @@ def main():
     print('[INFO] Initial searching end')
 
     if not solution:
-        print("[PROBLEM] Initial solution not found" ) 
+        print("[ERROR] Initial solution not found" ) 
         return
 
     # Assign value to global variables(alive_agent_thread_num & DYNAMIC_OBSTACLES)

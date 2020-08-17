@@ -16,6 +16,22 @@ from copy import deepcopy
 from cbs.a_star_mine import AStar
 
 import time
+import signal
+from contextlib import contextmanager
+
+class TimeoutException(Exception): pass
+
+@contextmanager
+def time_limit(seconds):
+    def signal_handler(signum, frame):
+        raise TimeoutException("Timed out!")
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+
 
 class Location(object):
     def __init__(self, x=-1, y=-1):
@@ -95,8 +111,8 @@ class Constraints(object):
             "EC: " + str([str(ec) for ec in self.edge_constraints])
 
 class Environment(object):
-    def __init__(self, dimension, agents, obstacles, obstacles_d=[], w_l=1.03, alpha1=1, alpha2=1):
-        print(obstacles_d)
+    def __init__(self, dimension, agents, obstacles, obstacles_d=[], w_l=1.1, alpha1=1, alpha2=1, alpha3=1):
+        print("[INFO] Dynamic obstacles: " + str(obstacles_d))
         self.dimension = dimension
         self.obstacles = obstacles
         self.obstacles_d = obstacles_d
@@ -115,6 +131,7 @@ class Environment(object):
         self.w_l = w_l # Bound of lower level
         self.alpha1 = alpha1 # coefficient of conflict number
         self.alpha2 = alpha2 # coefficient of dynamic obstacles distance
+        self.alpha3 = alpha3 # coefficient of f score
 
     def get_neighbors(self, state):
         neighbors = []
@@ -210,7 +227,7 @@ class Environment(object):
             and state.location.y >= 0 and state.location.y < self.dimension[1] \
             and VertexConstraint(state.time, state.location) not in self.constraints.vertex_constraints \
             and (state.location.x, state.location.y) not in self.obstacles \
-            and (state.location.x, state.location.y) not in self.obstacles_d 
+            and (state.location.x, state.location.y) not in self.obstacles_d
 
     def transition_valid(self, state_1, state_2):
         return EdgeConstraint(state_1.time, state_1.location, state_2.location) not in self.constraints.edge_constraints
@@ -240,7 +257,7 @@ class Environment(object):
             # Get the constraint of this agent
             self.constraints = self.constraint_dict.setdefault(agent, Constraints())
             # Use A* to search ang get the solution for this agent
-            local_solution = self.a_star.search(agent, self.w_l, self.alpha1, self.alpha2, solution, self.obstacles_d)
+            local_solution = self.a_star.search(agent, self.w_l, self.alpha1, self.alpha2, self.alpha3, solution, self.obstacles_d)
             if not local_solution:
                 return False
             # update the solution with this local solution of the agent
@@ -334,112 +351,122 @@ class CBS(object):
         self.open_set |= {start}
         self.focal_list.append(start)
 
-        # TODO: Add the time limitation iteration
-        
-        while self.focal_list:
-            # Count number of iterations and print it
-            cnt += 1
-            if cnt % 1000 == 0  and cnt > 1:
-                print('iteration: ', cnt)
+        # Time limitation iteration
+        start_time = time.time()
+        try:
+            with time_limit(self.limited_time):
+                while self.focal_list:
+                    # Count number of iterations and print it
+                    cnt += 1
+                    if cnt % 1000 == 0  and cnt > 1:
+                        print('iteration: ', cnt)
 
-            # Tighten the bound
-            w_h = self.getNextBound()
+                    # Tighten the bound
+                    w_h = self.getNextBound()
 
-            # Update Focal list
-            f_min = min(self.open_set).cost
-            self.updateFocalBound(w_h * f_min) # Here, f_min is the f(head(OPEN))
+                    # Update Focal list
+                    f_min = min(self.open_set).cost
+                    self.updateFocalBound(w_h * f_min) # Here, f_min is the f(head(OPEN))
 
-            # Order Focal list if not efficiently reusable (Here, it is. So do nothing)
-            
-            # Get the expanded state from FOCAL
-            P = self.focal_list[0]
-
-            # Delete the node from both OPEN & FOCAL
-            self.open_set -= {P}
-            self.focal_list.pop(0)
-
-            # Update environment
-            self.env.constraint_dict = P.constraint_dict
-
-            # Get the first conflict from all agents
-            conflict_dict = self.env.get_first_conflict(P.solution)
-
-            # If there's no conflict for all paths of agents, solution if found!
-            if not conflict_dict:
-                if (self.is_add_constraint): # 也就是有decentralized的更新 | USELESS NOW, self.is_add_constraint === FALSE
-                    """
-                    做三件事情：
-                    1. 把更新过来的constraint加入到新node的constraint list里面，且继承父亲node的constraint list
-                    2. A*计算新的solution
-                    3. open中只保留这个新的node
-
-                    待改进：
-                    1. 之前的open可以保存，有decentralized的update的时候可以直接reuse
-                    """
-                    print('Old solution found. Start add constraint list.')
-                    self.is_add_constraint = False
-                    new_node = deepcopy(P)
-                    pre_constraint_dict = P.constraint_dict[agent]
-                    new_node.constraint_dict[agent].add_constraint(pre_constraint_dict)
-                    for agent in self.decentralized_constraint_list.keys():
-                        new_node.constraint_dict[agent].add_constraint(self.decentralized_constraint_list[agent]) 
-                        self.env.constraint_dict = new_node.constraint_dict
-                    new_node.solution = self.env.compute_solution()
-                    new_node.cost = self.env.compute_solution_cost(new_node.solution)
-                    self.open_set = {new_node}
-                    continue
-                else:
-                    print("solution found")
-                    print('Iteration number: ', cnt)
-                    output = {}
-                    output["schedule"] = self.generate_plan(P.solution)
-                    output["cost"] = 1999
+                    # Order Focal list if not efficiently reusable (Here, it is. So do nothing)
                     
-                    # write solution to file
-                    with open('output_debug.yaml', 'w') as output_yaml:
-                        yaml.safe_dump(output, output_yaml) 
+                    # Get the expanded state from FOCAL
+                    P = self.focal_list[0]
 
-                    return self.generate_plan(P.solution)
+                    # Delete the node from both OPEN & FOCAL
+                    self.open_set -= {P}
+                    self.focal_list.pop(0)
 
-            # Have conflict, generate constraint dict
-            constraint_dict = self.env.create_constraints_from_conflict(conflict_dict)
+                    # Update environment
+                    self.env.constraint_dict = P.constraint_dict
 
-            # Generate 2 son nodes
-            for agent in constraint_dict.keys():
-                # 1. Extend constraint dict from father node
-                new_node = deepcopy(P)
+                    # Get the first conflict from all agents
+                    conflict_dict = self.env.get_first_conflict(P.solution)
 
-                # 2. Add new constrant to constraint dict according to which agent you choose
-                new_node.constraint_dict[agent].add_constraint(constraint_dict[agent]) 
-                
-                # Update environment constraint
-                self.env.constraint_dict = new_node.constraint_dict # A*就是根据self.env.constraint_dict来得到solution的
+                    # If there's no conflict for all paths of agents, solution if found!
+                    if not conflict_dict:
+                        if (self.is_add_constraint): # 也就是有decentralized的更新 | USELESS NOW, self.is_add_constraint === FALSE
+                            """
+                            做三件事情：
+                            1. 把更新过来的constraint加入到新node的constraint list里面，且继承父亲node的constraint list
+                            2. A*计算新的solution
+                            3. open中只保留这个新的node
 
-                # 3. Update solution with new constraints added
-                new_node.solution = self.env.compute_solution()
-                if not new_node.solution:
-                    continue
+                            待改进：
+                            1. 之前的open可以保存，有decentralized的update的时候可以直接reuse
+                            """
+                            print('Old solution found. Start add constraint list.')
+                            self.is_add_constraint = False
+                            new_node = deepcopy(P)
+                            pre_constraint_dict = P.constraint_dict[agent]
+                            new_node.constraint_dict[agent].add_constraint(pre_constraint_dict)
+                            for agent in self.decentralized_constraint_list.keys():
+                                new_node.constraint_dict[agent].add_constraint(self.decentralized_constraint_list[agent]) 
+                                self.env.constraint_dict = new_node.constraint_dict
+                            new_node.solution = self.env.compute_solution()
+                            new_node.cost = self.env.compute_solution_cost(new_node.solution)
+                            self.open_set = {new_node}
+                            continue
+                        else:
+                            print("solution found")
+                            print('Iteration number: ', cnt)
+                            output = {}
+                            output["schedule"] = self.generate_plan(P.solution)
+                            output["cost"] = 1999
+                            
+                            # write solution to file
+                            with open('output_debug.yaml', 'w') as output_yaml:
+                                yaml.safe_dump(output, output_yaml) 
+                            
+                            # Log usage time
+                            end_time = time.time()
+                            print("[INFO] Common search use time: " + str(end_time - start_time))
 
-                # 4. Add cost
-                new_node.cost = self.env.compute_solution_cost(new_node.solution)
+                            return self.generate_plan(P.solution)
 
-                # Add the son node to open set
-                self.open_set |= {new_node}
+                    # Have conflict, generate constraint dict
+                    constraint_dict = self.env.create_constraints_from_conflict(conflict_dict)
 
-                # If it's conform to the standard(cost <= w * f_min), insert it to the focal list by the conflict number
-                if new_node.cost <= w_h * f_min:
-                    for i in range(len(self.focal_list)):
-                        node = self.focal_list[i]
-                        if len(new_node.constraint_dict) <= len(node.constraint_dict):
-                            self.focal_list.insert(i, new_node)
-                            break
-                        if i == len(self.focal_list) - 1:
-                            self.focal_list.append(new_node)
-            
-            # Update the focal list because lower bound of open set is changed, sth may come into the open set~
-            f_min_new = min(self.open_set).cost
-            if (len(self.open_set) != 0) and (self.w_h * f_min < self.w_h * f_min_new):
-                self.updateLowerBound(f_min, f_min_new)
+                    # Generate 2 son nodes
+                    for agent in constraint_dict.keys():
+                        # 1. Extend constraint dict from father node
+                        new_node = deepcopy(P)
+
+                        # 2. Add new constrant to constraint dict according to which agent you choose
+                        new_node.constraint_dict[agent].add_constraint(constraint_dict[agent]) 
+                        
+                        # Update environment constraint
+                        self.env.constraint_dict = new_node.constraint_dict # A*就是根据self.env.constraint_dict来得到solution的
+
+                        # 3. Update solution with new constraints added
+                        new_node.solution = self.env.compute_solution()
+                        if not new_node.solution:
+                            continue
+
+                        # 4. Add cost
+                        new_node.cost = self.env.compute_solution_cost(new_node.solution)
+
+                        # Add the son node to open set
+                        self.open_set |= {new_node}
+
+                        # If it's conform to the standard(cost <= w * f_min), insert it to the focal list by the conflict number
+                        if new_node.cost <= w_h * f_min:
+                            for i in range(len(self.focal_list)):
+                                node = self.focal_list[i]
+                                if len(new_node.constraint_dict) <= len(node.constraint_dict):
+                                    self.focal_list.insert(i, new_node)
+                                    break
+                                if i == len(self.focal_list) - 1:
+                                    self.focal_list.append(new_node)
+                    
+                    # Update the focal list because lower bound of open set is changed, sth may come into the open set~
+                    f_min_new = min(self.open_set).cost
+                    if (len(self.open_set) != 0) and (self.w_h * f_min < self.w_h * f_min_new):
+                        self.updateLowerBound(f_min, f_min_new)
+        except TimeoutException as e:
+            print("[WARNING] Timed out!")
+        end_time = time.time()
+        print("[ERROR] Time out. Use time: " + str(end_time - start_time))
 
         return {}
 

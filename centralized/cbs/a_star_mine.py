@@ -5,6 +5,7 @@ AStar search
 author: Ashwin Bose (@atb033)
 
 """
+import math
 
 class AStar():
     def __init__(self, env):
@@ -20,25 +21,66 @@ class AStar():
             total_path.append(current)
         return total_path[::-1]
 
-
-
-
-    def search(self, agent_name, w_l, alpha1, alpha2, pre_solution, obstacles_dynamic_pos_list):
+    def search(self, agent_name, w_l, alpha1, alpha2, alpha3, pre_solution, obstacles_dynamic_pos_list):
         """
         low level search 
         """
 
         '''
-        TODO
+        @Explain:
             Comparison in focal list. 
             Use the created formula: alpha1 * (conflict number) - alpha2 * (distance to dynamic obstacles)
         @RETURN:
             if node1 <= node2: return True
             else: return False
         '''
-        def focal_compare(node1, node2, pre_solution, obstacles_dynamic_pos_list):
-            pass
+        def focal_compare(node1, node2, pre_solution, obstacles_dynamic_pos_list, timestep, f_score, alpha1, alpha2, alpha3):
+            # Part1: Number of conflicts with other agents
+            num_conflict_node1 = 0
+            num_conflict_node2 = 0
+            for agent_name_ in pre_solution.keys():
+                # In this timestep and for this agent, the (x, y, t) of previous solution
+                if timestep >= len(pre_solution[agent_name_]):
+                    break
+                pre_state = pre_solution[agent_name_][timestep]
+                if pre_state == node1:
+                    num_conflict_node1 += 1
+                if pre_state == node2:
+                    num_conflict_node2 += 1
 
+            # Part2: Sum of distance from dynamic obstacles
+            distance_node1 = 0
+            distance_node2 = 0
+            for pos_dyn_obs in obstacles_dynamic_pos_list:
+                distance_node1 += math.sqrt((pos_dyn_obs[0] - node1.location.x)**2 + (pos_dyn_obs[1] - node1.location.y)**2)
+                distance_node2 += math.sqrt((pos_dyn_obs[0] - node2.location.x)**2 + (pos_dyn_obs[1] - node2.location.y)**2)
+
+            # Part3: f score
+            f_score_node1 = f_score[node1]
+            f_score_node2 = f_score[node2]
+
+            # Part4: Calculate the formula
+
+            # Normalize
+            if num_conflict_node1 == 0 and num_conflict_node2 == 0:
+                num_conflict_node1 = 0
+                num_conflict_node2 = 0
+            else:
+                num_conflict_node1 = num_conflict_node1 / (num_conflict_node1 + num_conflict_node2)
+                num_conflict_node2 = num_conflict_node2 / (num_conflict_node1 + num_conflict_node2)
+            
+            if distance_node1 == 0 and distance_node2 == 0:
+                distance_node1 = 0
+                distance_node2 = 0
+            else:
+                distance_node1 = distance_node1 / (distance_node1 + distance_node2)
+                distance_node2 = distance_node2 / (distance_node1 + distance_node2)
+
+            # Caculation
+            value_node1 = alpha1 * num_conflict_node1 - alpha2 * distance_node1 + alpha3 * f_score_node1
+            value_node2 = alpha1 * num_conflict_node2 - alpha2 * distance_node2 + alpha3 * f_score_node2
+
+            return True if value_node1 <= value_node2 else False
 
         initial_state = self.agent_dict[agent_name]["start"]
 
@@ -63,7 +105,8 @@ class AStar():
 
         timestep = 0
 
-        while focal_list:
+        # HACK should be focal_list, but I change to open_set for now
+        while open_set:
             # open_item is the coordinate. temp_dict.keys(): OPEN; temp_dict.values(): f
             temp_dict = {open_item: f_score.setdefault(open_item, float("inf")) for open_item in open_set}
             current_idx = min(temp_dict, key=temp_dict.get)
@@ -72,7 +115,7 @@ class AStar():
             f_min = temp_dict[current_idx]
 
             # Min node in focal list
-            node = focal_list[0]
+            current = focal_list[0]
 
             # Remove the node from OPEN & FOCAL. Add it to CLOSE
             open_set -= {current}
@@ -83,38 +126,32 @@ class AStar():
             if self.is_at_goal(current, agent_name):
                 return self.reconstruct_path(came_from, current)
 
+            # # focal_dict => focal_list
+            # # Focal part
+            # # f1 part: get focal list
+            # focal_dict = {}
+            # f_min = temp_dict[current_idx]
+            # for open_item in open_set:
+            #     f_item = f_score.setdefault(open_item, float("inf"))
+            #     if f_item <= f_min * w_l:
+            #         focal_dict[open_item] = f_item
 
-
-
-
-
-
-            # HACK focal_dict => focal_list
-            # Focal part
-            # f1 part: get focal list
-            focal_dict = {}
-            f_min = temp_dict[current_idx]
-            for open_item in open_set:
-                f_item = f_score.setdefault(open_item, float("inf"))
-                if f_item <= f_min * w_l:
-                    focal_dict[open_item] = f_item
-
-            # f2 part
-            current = None
-            if len(pre_solution.keys()) == 0:
-                current = current_idx
-            else:
-                focal_cost_dict = {focal_item: 0 for focal_item in focal_dict.keys()} # dict. key: (t, x, y) value: number of conflict
-                for agent_name_ in pre_solution.keys():
-                    if timestep >= len(pre_solution[agent_name_]):
-                        break
-                    conflict_pos = pre_solution[agent_name_][timestep]
-                    focal_cost_dict = {focal_item: focal_cost_dict[focal_item] + 1 \
-                        if focal_item == conflict_pos else focal_cost_dict[focal_item] for focal_item in focal_dict.keys()}
-                min_focal_cost_idx = min(focal_cost_dict, key=focal_cost_dict.get)
-                min_focal_cost_dict = {focal_cost: focal_dict[focal_cost] \
-                    for focal_cost in focal_cost_dict.keys() if focal_cost_dict[focal_cost] == focal_cost_dict[min_focal_cost_idx]}
-                current = min(min_focal_cost_dict, key=min_focal_cost_dict.get)
+            # # f2 part
+            # current = None
+            # if len(pre_solution.keys()) == 0:
+            #     current = current_idx
+            # else:
+            #     focal_cost_dict = {focal_item: 0 for focal_item in focal_dict.keys()} # dict. key: (t, x, y) value: number of conflict
+            #     for agent_name_ in pre_solution.keys():
+            #         if timestep >= len(pre_solution[agent_name_]):
+            #             break
+            #         conflict_pos = pre_solution[agent_name_][timestep]
+            #         focal_cost_dict = {focal_item: focal_cost_dict[focal_item] + 1 \
+            #             if focal_item == conflict_pos else focal_cost_dict[focal_item] for focal_item in focal_dict.keys()}
+            #     min_focal_cost_idx = min(focal_cost_dict, key=focal_cost_dict.get)
+            #     min_focal_cost_dict = {focal_cost: focal_dict[focal_cost] \
+            #         for focal_cost in focal_cost_dict.keys() if focal_cost_dict[focal_cost] == focal_cost_dict[min_focal_cost_idx]}
+            #     current = min(min_focal_cost_dict, key=min_focal_cost_dict.get)
             
 
             timestep += 1
@@ -148,16 +185,21 @@ class AStar():
                 # If there's new node added to OPEN, you should consider whether it should be added to FOCAL
                 if is_add:
                     if f_score[neighbor] < w_l * f_min:
+                        if len(focal_list) == 0:
+                            focal_list.append(neighbor)
                         for i in range(len(focal_list)):
                             node = focal_list[i]
-                            if focal_compare(neighbor, node, pre_solution, obstacles_dynamic_pos_list):
+                            if focal_compare(neighbor, node, pre_solution, obstacles_dynamic_pos_list, timestep, f_score, alpha1, alpha2, alpha3):
                                 focal_list.insert(i, neighbor)
                                 break
                             if i == len(focal_list) - 1:
                                 focal_list.append(neighbor)
-            
             # Update the focal list because lower bound of open set is changed, sth may come into the open set~
-            f_min_new = f_score[min(open_set)]
+            temp_dict_ = {open_item: f_score.setdefault(open_item, float("inf")) for open_item in open_set}
+            if len(temp_dict_) == 0:
+                return False
+            current_idx_ = min(temp_dict_, key=temp_dict_.get)
+            f_min_new = temp_dict_[current_idx_]
             if (len(open_set) != 0) and (f_min < f_min_new):
                 # updateLowerBound part
                 old_bound = w_l * f_min
@@ -166,13 +208,13 @@ class AStar():
                     if (f_score[new_node] > old_bound) and (f_score[new_node] < new_bound):
                         for i in range(len(focal_list)):
                             node = focal_list[i]
-                            if focal_compare(neighbor, node, pre_solution, obstacles_dynamic_pos_list):
+                            if focal_compare(neighbor, node, pre_solution, obstacles_dynamic_pos_list, timestep, f_score, alpha1, alpha2, alpha3):
                                 focal_list.insert(i, new_node)
                                 break
                             if i == len(focal_list) - 1:
                                 focal_list.append(new_node)
+
+        print('[ERROR] ' + agent_name + ' END')
             
-
-
         return False
 
