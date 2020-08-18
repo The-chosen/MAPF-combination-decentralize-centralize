@@ -66,22 +66,23 @@ class Server(threading.Thread):
                     yaml.safe_dump(output, output_yaml) 
                 return
 
-            # print(pq)
             if pq.empty():
                 continue
             else:
-                # print('happy')
                 compute_start_time = time.time()
                 # Combine several conflict list & get minimum anytime limitation
                 conflicts = []
                 min_anytime_limitation_timestep = INF_NUM
+                min_anytime_limitation = INF_NUM
                 for i in range(self.num_combine):
                     if pq.empty():
                         break
-                    _, conflict, anytime_limitation_timestep = pq.get()
+                    _, conflict, anytime_limitation_timestep, anytime_limitation = pq.get()
                     conflicts += conflict
                     if anytime_limitation_timestep < min_anytime_limitation_timestep:
                         min_anytime_limitation_timestep = anytime_limitation_timestep
+                    if anytime_limitation < min_anytime_limitation:
+                        min_anytime_limitation = anytime_limitation
                 # change agents start time
                 agents_cp = deepcopy(self.agents)
                 for agent in agents_cp:
@@ -91,10 +92,15 @@ class Server(threading.Thread):
                     else:
                         temp = solution[agent['name']][min_anytime_limitation_timestep]
                     agent['start'] = [temp['x'], temp['y']]
+                
+                # No dangerous points
+                if len(conflicts) == 0:
+                    continue
 
                 env = Environment(self.dimension, agents_cp, self.obstacles, obstacles_d=conflicts)
                 # Searching
-                cbs = CBS(env, is_add_constraint=False)
+                print("[INFO] Anytime limitation: " + str(min_anytime_limitation))
+                cbs = CBS(env, min_anytime_limitation)
                 print('[INFO] Start common searching ...')
                 # with eventlet.Timeout(TIME_LIMIT, False):
                 solution_crr = cbs.search()
@@ -152,7 +158,7 @@ class Agent(threading.Thread):
             self.paths = deepcopy(solution)
             self.do_things_in_one_timestep(timestep)
         alive_agent_thread_num -= 1
-        print('[INFO] ' + str(self.agent_name) + ' end!')
+        print('[INFO] ' + str(self.agent_name) + ' end its path!')
 
 
     # @return: (conflicts[], anytime_limitation + timestep)
@@ -161,16 +167,18 @@ class Agent(threading.Thread):
         start_time = time.time()
 
         # ↓↓↓↓↓ Do things from here ↓↓↓↓↓
+        self.detect_pt = []
         points = self.detect(timestep, DYNAMIC_OBSTACLES)
         if not points:
             end_time = time.time()
             use_time = end_time - start_time
             time.sleep(self.timestep_time - use_time) # ensure the thing will be done within timestep_time
             real_end = time.time()
-            print(self.agent_name + ' finish timestep ' + str(timestep) + '. Use time: ' + str(real_end - start_time) + '. Have collision points.')
+            print(self.agent_name + ' finish timestep ' + str(timestep) + \
+                '. Use time: ' + str(real_end - start_time) + '. Have collision points.')
             return
         conflict_list_agent, anytime_limitation, min_cost_pt = self.find_constraint_list()
-        pq.put((min_cost_pt, conflict_list_agent, anytime_limitation + timestep))
+        pq.put((min_cost_pt, conflict_list_agent, anytime_limitation + timestep, anytime_limitation * self.timestep_time))
         
         # ↑↑↑↑↑ End things from above ↑↑↑↑↑
 
@@ -178,7 +186,8 @@ class Agent(threading.Thread):
         use_time = end_time - start_time
         time.sleep(self.timestep_time - use_time) # ensure the thing will be done within timestep_time
         real_end = time.time()
-        print(self.agent_name + ' finish timestep ' + str(timestep) + '. Use time: ' + str(real_end - start_time) + '. No collision points.')
+        print(self.agent_name + ' finish timestep ' + str(timestep) + \
+            '. Use time: ' + str(real_end - start_time) + '. No collision points.')
 
         
         
@@ -268,6 +277,7 @@ class Agent(threading.Thread):
         conflict_list = []
         min_cost_pt = INF_NUM
         for pt in self.detect_pt:
+            
             if 'score' not in pt.keys():
                 continue
             if pt['score'] >= self.threshold:
@@ -331,7 +341,7 @@ class Utils(object):
     t_crr: timestep of current agent.
     '''
     def anytime_func(self, cost):
-        return cost // 2
+        return cost // 2 + 1
 
 def main():
     global solution, alive_agent_thread_num, DYNAMIC_OBSTACLES

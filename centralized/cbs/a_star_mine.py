@@ -6,6 +6,7 @@ author: Ashwin Bose (@atb033)
 
 """
 import math
+import time
 
 class AStar():
     def __init__(self, env):
@@ -21,7 +22,7 @@ class AStar():
             total_path.append(current)
         return total_path[::-1]
 
-    def search(self, agent_name, w_l, alpha1, alpha2, alpha3, pre_solution, obstacles_dynamic_pos_list):
+    def search(self, agent_name, w_l, alpha1, alpha2, alpha3, pre_solution, obstacles_dynamic_pos_list, start_time, limited_time):
         """
         low level search 
         """
@@ -106,7 +107,14 @@ class AStar():
         timestep = 0
 
         # HACK should be focal_list, but I change to open_set for now
-        while open_set:
+        while focal_list:
+            # See if exceed the time limitation
+            end_time = time.time()
+            if end_time - start_time >= limited_time:
+                print("[WARNING] Time exceeded! Use time: " + str(end_time - start_time) + " s.")
+                return "TIME"
+
+
             # open_item is the coordinate. temp_dict.keys(): OPEN; temp_dict.values(): f
             temp_dict = {open_item: f_score.setdefault(open_item, float("inf")) for open_item in open_set}
             current_idx = min(temp_dict, key=temp_dict.get)
@@ -184,7 +192,7 @@ class AStar():
 
                 # If there's new node added to OPEN, you should consider whether it should be added to FOCAL
                 if is_add:
-                    if f_score[neighbor] < w_l * f_min:
+                    if f_score[neighbor] <= w_l * f_min:
                         if len(focal_list) == 0:
                             focal_list.append(neighbor)
                         for i in range(len(focal_list)):
@@ -206,6 +214,8 @@ class AStar():
                 new_bound = w_l * f_min_new
                 for new_node in open_set:
                     if (f_score[new_node] > old_bound) and (f_score[new_node] < new_bound):
+                        if len(focal_list) == 0:
+                            focal_list.append(new_node)
                         for i in range(len(focal_list)):
                             node = focal_list[i]
                             if focal_compare(neighbor, node, pre_solution, obstacles_dynamic_pos_list, timestep, f_score, alpha1, alpha2, alpha3):
@@ -214,7 +224,7 @@ class AStar():
                             if i == len(focal_list) - 1:
                                 focal_list.append(new_node)
 
-        print('[ERROR] ' + agent_name + ' END')
+        print("[ERROR] " + agent_name + " END, it doesn't find its path :(")
             
         return False
 
