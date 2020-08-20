@@ -177,34 +177,11 @@ class AStar():
             open_set -= {current}
             closed_set |= {current}
 
-            # if 'agent2' in self.env.constraint_dict.keys() and 'agent6' in self.env.constraint_dict.keys():
-            #     constraint_dict_2 = self.env.constraint_dict['agent2']
-            #     constraint_dict_6 = self.env.constraint_dict['agent6']
-            #     is_2 = False
-            #     is_6 = False
-            #     for constraint in constraint_dict_2.vertex_constraints:
-            #         if constraint.time == 26 and constraint.location.x == 7 and constraint.location.y == 27:
-            #             is_2 = True
-            #             break
-                        
-            #     for constraint in constraint_dict_6.vertex_constraints:
-            #         if constraint.time == 26 and constraint.location.x == 7 and constraint.location.y == 27:
-            #             is_6 = True
-            #             break
-
-            #     if not is_2:
-            #         print("[DEBUG] Not Found (26, 7, 27) in env of agent2!")
-            #     if not is_6:
-            #         print("[DEBUG] Not Found (26, 7, 27) in env of agent6!")
-
             # the get_neighbors() function will return all valid directions to go to
             # what's valid is defined by constraints list
             neighbor_list = self.get_neighbors(current)
 
             for neighbor in neighbor_list:
-                # if neighbor.time == 26 and neighbor.location.x == 7 and neighbor.location.y == 27:
-                #     print("[ERROR] (26, 7, 27) is HERE!!!! Agent Name: " + str(agent_name))
-
                 is_add = False # will the neighbor added to OPEN
                 if neighbor in closed_set:
                     continue

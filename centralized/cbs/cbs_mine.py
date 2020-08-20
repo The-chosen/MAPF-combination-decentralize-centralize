@@ -167,9 +167,6 @@ class Environment(object):
             for agent_1, agent_2 in combinations(solution.keys(), 2):
                 state_1 = self.get_state(agent_1, solution, t)
                 state_2 = self.get_state(agent_2, solution, t)
-                if (t == 26 and agent_1 == 'agent2' and agent_2 == 'agent6') or (t == 26 and agent_1 == 'agent6' and agent_2 == 'agent2'):
-                    print("[DUBUG] state1:" + str(state_1))
-                    print("[DEBUG] state2:" + str(state_2))
                 if state_1.is_equal_except_time(state_2):
                     result.time = t
                     result.type = Conflict.VERTEX
@@ -255,10 +252,6 @@ class Environment(object):
             self.agent_dict.update({agent['name']:{'start':start_state, 'goal':goal_state}})
 
     def compute_solution(self, start_time, limited_time):
-        # print(">>>:::" + str(self.constraint_dict.keys()))
-        if self.constraint_dict.keys():
-            print("[DEBUG] self.constraint_dict (agent2): " + str(self.constraint_dict['agent2']))
-            print("[DEBUG] self.constraint_dict (agent6): " + str(self.constraint_dict['agent6']))
         solution = {}
         start_time_ = time.time()
         for agent in self.agent_dict.keys():
@@ -275,12 +268,6 @@ class Environment(object):
             solution.update({agent:local_solution})
         end_time_ = time.time()
         print('[INFO] Consumed time for one solution computing: ' + str(end_time_ - start_time_))
-
-        s = self.generate_plan(solution)
-        if {'t': 26, 'x': 7, 'y': 27} in s['agent2']:
-            print("[DEBUG] Compute: (26, 7, 27) in path of agent2!")
-        if {'t': 26, 'x': 7, 'y': 27} in s['agent6']:
-            print("[DEBUG] Compute: (26, 7, 27) in path of agent6!")
 
         # output = {}
         # output["schedule"] = self.generate_plan(solution)
@@ -440,19 +427,8 @@ class CBS(object):
                 # Update environment
                 self.env.constraint_dict = P.constraint_dict
 
-                s = self.generate_plan(P.solution)
-                if {'t': 26, 'x': 7, 'y': 27} in s['agent2']:
-                    print("[DEBUG] In iteration: (26, 7, 27) in path of agent2!")
-                if {'t': 26, 'x': 7, 'y': 27} in s['agent6']:
-                    print("[DEBUG] In iteration: (26, 7, 27) in path of agent6!")
-
-                print("============================")
-                print(self.generate_plan(P.solution))
-                print("============================")
-
                 # Get the first conflict from all agents
                 conflict_dict = self.env.get_first_conflict(P.solution)
-                print("[DEBUG] First_conflict: " + str(conflict_dict))
 
                 # If there's no conflict for all paths of agents, solution if found!
                 if not conflict_dict:
@@ -505,12 +481,8 @@ class CBS(object):
                 constraint_dict = self.env.create_constraints_from_conflict(conflict_dict)
 
 
-                print("[DEBUG] previous Constraint_dict[agent2]: " + str(self.env.constraint_dict['agent2']))
-                print("[DEBUG] previous Constraint_dict[agent6]: " + str(self.env.constraint_dict['agent6']))
-                print("[DEBUG] previous Constraint_dict keys(see if there's mark): " + str(self.env.constraint_dict.keys()))
                 # Generate 2 son nodes
                 for agent in constraint_dict.keys():
-                    print("[DEBUG] Constraint_dict[" + agent + "]: " + str(constraint_dict[agent]))
                     # 1. Extend constraint dict from father node
                     new_node = deepcopy(P)
 
