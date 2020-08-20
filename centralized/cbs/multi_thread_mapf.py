@@ -174,8 +174,8 @@ class Agent(threading.Thread):
             use_time = end_time - start_time
             time.sleep(self.timestep_time - use_time) # ensure the thing will be done within timestep_time
             real_end = time.time()
-            print(self.agent_name + ' finish timestep ' + str(timestep) + \
-                '. Use time: ' + str(real_end - start_time) + '. Have collision points.')
+            # print(self.agent_name + ' finish timestep ' + str(timestep) + \
+            #     '. Use time: ' + str(real_end - start_time) + '. Have collision points.')
             return
         conflict_list_agent, anytime_limitation, min_cost_pt = self.find_constraint_list()
         pq.put((min_cost_pt, conflict_list_agent, anytime_limitation + timestep, anytime_limitation * self.timestep_time))
@@ -186,8 +186,8 @@ class Agent(threading.Thread):
         use_time = end_time - start_time
         time.sleep(self.timestep_time - use_time) # ensure the thing will be done within timestep_time
         real_end = time.time()
-        print(self.agent_name + ' finish timestep ' + str(timestep) + \
-            '. Use time: ' + str(real_end - start_time) + '. No collision points.')
+        # print(self.agent_name + ' finish timestep ' + str(timestep) + \
+        #     '. Use time: ' + str(real_end - start_time) + '. No collision points.')
 
         
         

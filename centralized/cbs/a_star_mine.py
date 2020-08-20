@@ -14,6 +14,7 @@ class AStar():
         self.admissible_heuristic = env.admissible_heuristic
         self.is_at_goal = env.is_at_goal
         self.get_neighbors = env.get_neighbors
+        self.env = env
 
     def reconstruct_path(self, came_from, current):
         total_path = [current]
@@ -82,6 +83,15 @@ class AStar():
             value_node2 = alpha1 * num_conflict_node2 - alpha2 * distance_node2 + alpha3 * f_score_node2
 
             return True if value_node1 <= value_node2 else False
+
+        # See if the goal occupied first. If it is, return a long long route~
+        if agent_name in self.env.constraint_dict.keys():
+            constraint_dict_ = self.env.constraint_dict[agent_name]
+            for constraint in constraint_dict_.vertex_constraints:
+                if (constraint.location.x == self.env.agent_dict[agent_name]["goal"].location.x) \
+                    and (constraint.location.y == self.env.agent_dict[agent_name]["goal"].location.y):
+                    print("[INFO] Occupy goal constraint: " + str(constraint))
+                    return ['' for i in range(9999)] # Return a very long list to make cost big ~
 
         initial_state = self.agent_dict[agent_name]["start"]
 
@@ -167,11 +177,34 @@ class AStar():
             open_set -= {current}
             closed_set |= {current}
 
+            # if 'agent2' in self.env.constraint_dict.keys() and 'agent6' in self.env.constraint_dict.keys():
+            #     constraint_dict_2 = self.env.constraint_dict['agent2']
+            #     constraint_dict_6 = self.env.constraint_dict['agent6']
+            #     is_2 = False
+            #     is_6 = False
+            #     for constraint in constraint_dict_2.vertex_constraints:
+            #         if constraint.time == 26 and constraint.location.x == 7 and constraint.location.y == 27:
+            #             is_2 = True
+            #             break
+                        
+            #     for constraint in constraint_dict_6.vertex_constraints:
+            #         if constraint.time == 26 and constraint.location.x == 7 and constraint.location.y == 27:
+            #             is_6 = True
+            #             break
+
+            #     if not is_2:
+            #         print("[DEBUG] Not Found (26, 7, 27) in env of agent2!")
+            #     if not is_6:
+            #         print("[DEBUG] Not Found (26, 7, 27) in env of agent6!")
+
             # the get_neighbors() function will return all valid directions to go to
             # what's valid is defined by constraints list
             neighbor_list = self.get_neighbors(current)
 
             for neighbor in neighbor_list:
+                # if neighbor.time == 26 and neighbor.location.x == 7 and neighbor.location.y == 27:
+                #     print("[ERROR] (26, 7, 27) is HERE!!!! Agent Name: " + str(agent_name))
+
                 is_add = False # will the neighbor added to OPEN
                 if neighbor in closed_set:
                     continue
@@ -193,8 +226,6 @@ class AStar():
                 # If there's new node added to OPEN, you should consider whether it should be added to FOCAL
                 if is_add:
                     if f_score[neighbor] <= w_l * f_min:
-                        if len(focal_list) == 0:
-                            focal_list.append(neighbor)
                         for i in range(len(focal_list)):
                             node = focal_list[i]
                             if focal_compare(neighbor, node, pre_solution, obstacles_dynamic_pos_list, timestep, f_score, alpha1, alpha2, alpha3):
@@ -202,6 +233,10 @@ class AStar():
                                 break
                             if i == len(focal_list) - 1:
                                 focal_list.append(neighbor)
+                                break
+                        if len(focal_list) == 0:
+                            focal_list.append(neighbor)
+                            
             # Update the focal list because lower bound of open set is changed, sth may come into the open set~
             temp_dict_ = {open_item: f_score.setdefault(open_item, float("inf")) for open_item in open_set}
             if len(temp_dict_) == 0:
@@ -214,8 +249,6 @@ class AStar():
                 new_bound = w_l * f_min_new
                 for new_node in open_set:
                     if (f_score[new_node] > old_bound) and (f_score[new_node] < new_bound):
-                        if len(focal_list) == 0:
-                            focal_list.append(new_node)
                         for i in range(len(focal_list)):
                             node = focal_list[i]
                             if focal_compare(neighbor, node, pre_solution, obstacles_dynamic_pos_list, timestep, f_score, alpha1, alpha2, alpha3):
@@ -223,6 +256,10 @@ class AStar():
                                 break
                             if i == len(focal_list) - 1:
                                 focal_list.append(new_node)
+                                break
+                        if len(focal_list) == 0:
+                            focal_list.append(new_node)
+                            
 
         print("[ERROR] " + agent_name + " END, it doesn't find its path :(")
             

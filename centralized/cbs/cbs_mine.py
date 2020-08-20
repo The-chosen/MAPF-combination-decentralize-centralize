@@ -162,10 +162,14 @@ class Environment(object):
         max_t = max([len(plan) for plan in solution.values()])
         result = Conflict()
         for t in range(max_t):
+
             # First kind of conflict
             for agent_1, agent_2 in combinations(solution.keys(), 2):
                 state_1 = self.get_state(agent_1, solution, t)
                 state_2 = self.get_state(agent_2, solution, t)
+                if (t == 26 and agent_1 == 'agent2' and agent_2 == 'agent6') or (t == 26 and agent_1 == 'agent6' and agent_2 == 'agent2'):
+                    print("[DUBUG] state1:" + str(state_1))
+                    print("[DEBUG] state2:" + str(state_2))
                 if state_1.is_equal_except_time(state_2):
                     result.time = t
                     result.type = Conflict.VERTEX
@@ -251,6 +255,10 @@ class Environment(object):
             self.agent_dict.update({agent['name']:{'start':start_state, 'goal':goal_state}})
 
     def compute_solution(self, start_time, limited_time):
+        # print(">>>:::" + str(self.constraint_dict.keys()))
+        if self.constraint_dict.keys():
+            print("[DEBUG] self.constraint_dict (agent2): " + str(self.constraint_dict['agent2']))
+            print("[DEBUG] self.constraint_dict (agent6): " + str(self.constraint_dict['agent6']))
         solution = {}
         start_time_ = time.time()
         for agent in self.agent_dict.keys():
@@ -267,6 +275,13 @@ class Environment(object):
             solution.update({agent:local_solution})
         end_time_ = time.time()
         print('[INFO] Consumed time for one solution computing: ' + str(end_time_ - start_time_))
+
+        s = self.generate_plan(solution)
+        if {'t': 26, 'x': 7, 'y': 27} in s['agent2']:
+            print("[DEBUG] Compute: (26, 7, 27) in path of agent2!")
+        if {'t': 26, 'x': 7, 'y': 27} in s['agent6']:
+            print("[DEBUG] Compute: (26, 7, 27) in path of agent6!")
+
         # output = {}
         # output["schedule"] = self.generate_plan(solution)
         # output["cost"] = 1
@@ -279,7 +294,8 @@ class Environment(object):
     def generate_plan(self, solution):
         plan = {}
         for agent, path in solution.items():
-            path_dict_list = [{'t':state.time, 'x':state.location.x, 'y':state.location.y} for state in path]
+            path_dict_list = [{'t':state.time, 'x':state.location.x, 'y':state.location.y} \
+                if type(state).__name__ == 'State' else '' for state in path]
             plan[agent] = path_dict_list
         return plan
 
@@ -424,8 +440,19 @@ class CBS(object):
                 # Update environment
                 self.env.constraint_dict = P.constraint_dict
 
+                s = self.generate_plan(P.solution)
+                if {'t': 26, 'x': 7, 'y': 27} in s['agent2']:
+                    print("[DEBUG] In iteration: (26, 7, 27) in path of agent2!")
+                if {'t': 26, 'x': 7, 'y': 27} in s['agent6']:
+                    print("[DEBUG] In iteration: (26, 7, 27) in path of agent6!")
+
+                print("============================")
+                print(self.generate_plan(P.solution))
+                print("============================")
+
                 # Get the first conflict from all agents
                 conflict_dict = self.env.get_first_conflict(P.solution)
+                print("[DEBUG] First_conflict: " + str(conflict_dict))
 
                 # If there's no conflict for all paths of agents, solution if found!
                 if not conflict_dict:
@@ -478,8 +505,12 @@ class CBS(object):
                 constraint_dict = self.env.create_constraints_from_conflict(conflict_dict)
 
 
+                print("[DEBUG] previous Constraint_dict[agent2]: " + str(self.env.constraint_dict['agent2']))
+                print("[DEBUG] previous Constraint_dict[agent6]: " + str(self.env.constraint_dict['agent6']))
+                print("[DEBUG] previous Constraint_dict keys(see if there's mark): " + str(self.env.constraint_dict.keys()))
                 # Generate 2 son nodes
                 for agent in constraint_dict.keys():
+                    print("[DEBUG] Constraint_dict[" + agent + "]: " + str(constraint_dict[agent]))
                     # 1. Extend constraint dict from father node
                     new_node = deepcopy(P)
 
@@ -487,13 +518,18 @@ class CBS(object):
                     new_node.constraint_dict[agent].add_constraint(constraint_dict[agent]) 
                     
                     # Update environment constraint
+                    # 做个记号
+                    new_node.constraint_dict['mark-' + str(agent)] = 'Hello!!!'
                     self.env.constraint_dict = new_node.constraint_dict # A*就是根据self.env.constraint_dict来得到solution的
+
+                    
+
 
                     # 3. Update solution with new constraints added
                     new_node.solution = self.env.compute_solution(self.start_time, self.limited_time)
                     if new_node.solution == "TIME":
                         if len(solutions) == 0:
-                            print("[ERROR] Time exeeded. No solution found.")
+                            print("[ERROR] Time exceeded. No solution found.")
                             return {}
                         else:
                             return solutions[len(solutions) - 1]
@@ -511,8 +547,6 @@ class CBS(object):
                     print("[DEBUG] new_node.cost: " + str(new_node.cost))
                     print("[DEBUG] w_h * f_min: " + str(w_h * f_min))
                     if new_node.cost <= w_h * f_min:
-                        if len(self.focal_list) == 0:
-                            self.focal_list.append(new_node)
                         for i in range(len(self.focal_list)):
                             node = self.focal_list[i]
                             if len(new_node.constraint_dict) <= len(node.constraint_dict):
@@ -520,7 +554,10 @@ class CBS(object):
                                 break
                             if i == len(self.focal_list) - 1:
                                 self.focal_list.append(new_node)
-                        
+                                break
+                        if len(self.focal_list) == 0:
+                            self.focal_list.append(new_node)
+                            
                 
                 # Update the focal list because lower bound of open set is changed, sth may come into the open set~
                 f_min_new = min(self.open_set).cost
