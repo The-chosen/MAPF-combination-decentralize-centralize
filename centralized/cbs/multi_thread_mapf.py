@@ -58,7 +58,7 @@ class Server(threading.Thread):
             # agents all finish their paths
             # print("alive_agent_thread_num: ", alive_agent_thread_num)
             if alive_agent_thread_num == 0:
-                print(solution)
+                print("[INFO] FINAL FOUND SOLUTION: " + str(solution))
                 output = {}
                 output["schedule"] = solution
                 # output["cost"] = env.compute_solution_cost(solution)
@@ -99,15 +99,17 @@ class Server(threading.Thread):
 
                 env = Environment(self.dimension, agents_cp, self.obstacles, obstacles_d=conflicts)
                 # Searching
-                print("[INFO] Anytime limitation: " + str(min_anytime_limitation))
+                print("===========================================")
                 cbs = CBS(env, min_anytime_limitation)
                 print('[INFO] Start common searching ...')
+                print("[INFO] Anytime limitation: " + str(min_anytime_limitation))
                 # with eventlet.Timeout(TIME_LIMIT, False):
                 solution_crr = cbs.search()
                 if not solution_crr:
                     print('[ERROR] Solution not found!')
                     continue
                 print('[INFO] Common searching ends')
+
                 # Get previous solution
                 solution_pre = solution
 
@@ -124,7 +126,7 @@ class Server(threading.Thread):
 
                 solution = solution_crr
                 compute_end_time = time.time()
-                print('Common searching use time: ' + str(compute_end_time - compute_start_time))
+                print('[INFO] Common searching use time: ' + str(compute_end_time - compute_start_time))
 
 class Agent(threading.Thread):
     '''

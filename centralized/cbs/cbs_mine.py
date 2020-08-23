@@ -161,13 +161,22 @@ class Environment(object):
     def get_first_conflict(self, solution):
         max_t = max([len(plan) for plan in solution.values()])
         result = Conflict()
+        # for sts in solution['agent2']:
+        #     print('[DEBUG] AGENT2: ' + str(sts))
         for t in range(max_t):
 
             # First kind of conflict
             for agent_1, agent_2 in combinations(solution.keys(), 2):
                 state_1 = self.get_state(agent_1, solution, t)
                 state_2 = self.get_state(agent_2, solution, t)
+                # if type(state_1).__name__ != 'State' or type(state_2).__name__ != 'State':
+                #     continue
                 if state_1.is_equal_except_time(state_2):
+                    # print()
+                    # print("[DEBUG] agent1: " + str(agent_1))
+                    # print("[DEBUG] state_1: " + str(state_1))
+                    # print("[DEBUG] agent2: " + str(agent_2))
+                    # print("[DEBUG] state_2: " + str(state_2))
                     result.time = t
                     result.type = Conflict.VERTEX
                     result.location_1 = state_1.location
@@ -182,7 +191,9 @@ class Environment(object):
 
                 state_2a = self.get_state(agent_2, solution, t)
                 state_2b = self.get_state(agent_2, solution, t+1)
-
+                # if type(state_1a).__name__ != 'State' or type(state_2a).__name__ != 'State' \
+                #     or type(state_1b).__name__ != 'State' or type(state_2b).__name__ != 'State':
+                #     continue
                 if state_1a.is_equal_except_time(state_2b) and state_1b.is_equal_except_time(state_2a):
                     result.time = t
                     result.type = Conflict.EDGE
@@ -251,21 +262,39 @@ class Environment(object):
             
             self.agent_dict.update({agent['name']:{'start':start_state, 'goal':goal_state}})
 
-    def compute_solution(self, start_time, limited_time):
-        solution = {}
+    def compute_solution(self, start_time, limited_time, agent_name=None, solution=None):
+        solution = {} if solution == None else solution
         start_time_ = time.time()
-        for agent in self.agent_dict.keys():
+        if agent_name == None:
+            for agent in self.agent_dict.keys():
+                # Get the constraint of this agent
+                self.constraints = self.constraint_dict.setdefault(agent, Constraints())
+                # Use A* to search ang get the solution for this agent
+                local_solution = self.a_star.search(agent, self.w_l, self.alpha1, 
+                self.alpha2, self.alpha3, solution, self.obstacles_d, start_time, limited_time)
+                if local_solution == 'OCCUPY':
+                    return 'OCCUPY'
+                if local_solution == "TIME":
+                    return "TIME"
+                if not local_solution:
+                    return False
+                # update the solution with this local solution of the agent
+                solution.update({agent: local_solution})
+        else:
             # Get the constraint of this agent
-            self.constraints = self.constraint_dict.setdefault(agent, Constraints())
+            self.constraints = self.constraint_dict.setdefault(agent_name, Constraints())
             # Use A* to search ang get the solution for this agent
-            local_solution = self.a_star.search(agent, self.w_l, self.alpha1, 
+            local_solution = self.a_star.search(agent_name, self.w_l, self.alpha1, 
             self.alpha2, self.alpha3, solution, self.obstacles_d, start_time, limited_time)
+            if local_solution == 'OCCUPY':
+                return 'OCCUPY'
             if local_solution == "TIME":
                 return "TIME"
             if not local_solution:
                 return False
             # update the solution with this local solution of the agent
-            solution.update({agent:local_solution})
+            solution.update({agent_name: local_solution})
+            
         end_time_ = time.time()
         print('[INFO] Consumed time for one solution computing: ' + str(end_time_ - start_time_))
 
@@ -276,6 +305,7 @@ class Environment(object):
         # # write solution to file
         # with open('output_debug.yaml', 'w') as output_yaml:
         #     yaml.safe_dump(output, output_yaml) 
+        
         return solution
 
     def generate_plan(self, solution):
@@ -311,7 +341,7 @@ class CBS(object):
         # Anytime things
         self.focal_list = []
         self.limited_time = limited_time
-        self.gamma = 0.9 # Decay of bound
+        self.gamma = 0.985 # Decay of bound
         self.w_h = 1.1 / self.gamma # Bound of high level
 
     def updateFocalBound(self, bound):
@@ -327,12 +357,22 @@ class CBS(object):
                     node = self.focal_list[i]
                     if len(new_node.constraint_dict) <= len(node.constraint_dict):
                         self.focal_list.insert(i, new_node)
+                        print("[DEBUG] Node added.")
                         break
                     if i == len(self.focal_list) - 1:
                         self.focal_list.append(new_node)
+                        print("[DEBUG] Node added.")
+                        break
+                if len(self.focal_list) == 0:
+                    self.focal_list.append(new_node)
+                    print("[DEBUG] Node added.")
 
     def getNextBound(self):
-        return self.w_h * self.gamma
+        return_thing = self.w_h * self.gamma
+        if return_thing < 1.01:
+            print("[INFO] w_h < 1.01. Have been most optimal ~")
+            return "OPTIMAL"
+        return return_thing
 
     def open_focal_initialization(self, solutions):
         # Construct start node in high level
@@ -385,7 +425,7 @@ class CBS(object):
 
         # Keep running if anytime limitation is not over
         while True:
-            print("[INFO] solution times ~")
+            print("[INFO] A new iteration for a new Solution ~")
             # If there's no node, initialize again
             if len(self.open_set) == 0 or len(self.focal_list) == 0:
                 msg, return_data = self.open_focal_initialization(solutions)
@@ -395,6 +435,13 @@ class CBS(object):
 
             # Tighten the bound
             w_h = self.getNextBound()
+            if w_h == "OPTIMAL":
+                if len(solutions) == 0:
+                    print("[ERROR] No solution found.")
+                    return {}
+                else:
+                    return solutions[len(solutions) - 1]
+
 
             # Update Focal list
             f_min = min(self.open_set).cost
@@ -430,6 +477,8 @@ class CBS(object):
                 # Get the first conflict from all agents
                 conflict_dict = self.env.get_first_conflict(P.solution)
 
+                print("[DEBUG] Conflict dict: " + str(conflict_dict))
+
                 # If there's no conflict for all paths of agents, solution if found!
                 if not conflict_dict:
                     if (self.is_add_constraint): # 也就是有decentralized的更新 | USELESS NOW, self.is_add_constraint === FALSE
@@ -457,6 +506,7 @@ class CBS(object):
                     else:
                         print('[INFO] Iteration number: ', cnt)
                         print("[SUCCESS INFO] " + str(num_sol) + " solution(s) found ~")
+                        print("[DEBUG] cost of success node: " + str(P.cost))
                         num_sol += 1
                         has_found_sol = not has_found_sol
                         solutions.append(self.generate_plan(P.solution))
@@ -483,6 +533,8 @@ class CBS(object):
 
                 # Generate 2 son nodes
                 for agent in constraint_dict.keys():
+                    print("[DEBUG] Solve conflict from: " + str(agent))
+
                     # 1. Extend constraint dict from father node
                     new_node = deepcopy(P)
 
@@ -490,15 +542,14 @@ class CBS(object):
                     new_node.constraint_dict[agent].add_constraint(constraint_dict[agent]) 
                     
                     # Update environment constraint
-                    # 做个记号
-                    new_node.constraint_dict['mark-' + str(agent)] = 'Hello!!!'
                     self.env.constraint_dict = new_node.constraint_dict # A*就是根据self.env.constraint_dict来得到solution的
 
-                    
-
-
                     # 3. Update solution with new constraints added
-                    new_node.solution = self.env.compute_solution(self.start_time, self.limited_time)
+                    new_node.solution = self.env.compute_solution(self.start_time, self.limited_time, agent, deepcopy(P.solution))
+
+                    if new_node.solution == "OCCUPY":
+                        continue
+
                     if new_node.solution == "TIME":
                         if len(solutions) == 0:
                             print("[ERROR] Time exceeded. No solution found.")
@@ -523,37 +574,31 @@ class CBS(object):
                             node = self.focal_list[i]
                             if len(new_node.constraint_dict) <= len(node.constraint_dict):
                                 self.focal_list.insert(i, new_node)
+                                print("[DEBUG] Node added.")
                                 break
                             if i == len(self.focal_list) - 1:
                                 self.focal_list.append(new_node)
+                                print("[DEBUG] Node added.")
                                 break
                         if len(self.focal_list) == 0:
                             self.focal_list.append(new_node)
+                            print("[DEBUG] Node added.")
                             
                 
                 # Update the focal list because lower bound of open set is changed, sth may come into the open set~
                 f_min_new = min(self.open_set).cost
                 if (len(self.open_set) != 0) and (self.w_h * f_min < self.w_h * f_min_new):
                     self.updateLowerBound(f_min, f_min_new)
+
+                print("[DEBUG] focal list: " + str(self.focal_list))
             
-
-
-
-
-        # start_time = time.time()
-        # try:
-        #     with time_limit(self.limited_time):
-
-        # except TimeoutException as e:
-        #     print("[WARNING] Timed out!")
-        # end_time = time.time()
-        # print("[ERROR] Time out. Use time: " + str(end_time - start_time))
 
         return {}
 
     def generate_plan(self, solution):
         plan = {}
         for agent, path in solution.items():
+            # print('[DEBUG] Path: ' + str(path))
             path_dict_list = [{'t':state.time, 'x':state.location.x, 'y':state.location.y} for state in path]
             plan[agent] = path_dict_list
         return plan

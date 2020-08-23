@@ -91,7 +91,8 @@ class AStar():
                 if (constraint.location.x == self.env.agent_dict[agent_name]["goal"].location.x) \
                     and (constraint.location.y == self.env.agent_dict[agent_name]["goal"].location.y):
                     print("[INFO] Occupy goal constraint: " + str(constraint))
-                    return ['' for i in range(9999)] # Return a very long list to make cost big ~
+                    return "OCCUPY"
+                    # return ['' for i in range(9999)] # Return a very long list to make cost big ~
 
         initial_state = self.agent_dict[agent_name]["start"]
 
@@ -180,6 +181,10 @@ class AStar():
             # the get_neighbors() function will return all valid directions to go to
             # what's valid is defined by constraints list
             neighbor_list = self.get_neighbors(current)
+
+            # for nei in neighbor_list:
+            #     if nei.location.x == 7 and nei.location.y == 27 and nei.time == 26:
+            #         print("[DEBUG] (7, 27): " + str(nei))
 
             for neighbor in neighbor_list:
                 is_add = False # will the neighbor added to OPEN
