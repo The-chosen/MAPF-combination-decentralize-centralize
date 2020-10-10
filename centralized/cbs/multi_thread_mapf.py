@@ -35,6 +35,10 @@ R = 4
 THRESHOLD = 25
 TIME_LIMIT = 20
 
+TIMESTEP_TIME = 0.5
+
+IS_TEST = True # If it's now testing cbs for initialization, then True.
+
 class Server(threading.Thread):
     """
     自定义一个类haha,必须要继承threading.Thread，下面必须要重写一个run()方法。
@@ -138,7 +142,7 @@ class Agent(threading.Thread):
 
     timestep_time: time limitation for each timestep
     '''
-    def __init__(self, agent_name, timestep_time=5, R=R, threshold=THRESHOLD):
+    def __init__(self, agent_name, timestep_time=TIMESTEP_TIME, R=R, threshold=THRESHOLD):
         global solution
         threading.Thread.__init__(self)
         self.R = R
@@ -315,13 +319,13 @@ class Utils(object):
         score = 0
         if dist <= 1:
             score = INF_NUM
-        elif dist == 2:
+        elif dist <= 3:
             score = THRESHOLD * 1
-        elif dist == 3:
-            score = THRESHOLD * 0.5
         elif dist == 4:
+            score = THRESHOLD * 0.5
+        elif dist == 5:
             score = THRESHOLD * 0.25
-        elif dist >= 5:
+        elif dist >= 6:
             score = THRESHOLD * 0.1
 
         if cost <= 3:
@@ -352,7 +356,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("param", help="input file containing map and obstacles")
     parser.add_argument("output", help="output file with the schedule")
+    if IS_TEST:
+        parser.add_argument("N", help="number for experiments")
+        parser.add_argument("agent_num", help="number of agents")
+        parser.add_argument("obstacle_prob", help="probability of static obstacles")
     args = parser.parse_args()
+
+    N, agent_num, obstacle_prob = None, None, None
+    if IS_TEST:
+        N = args.N if IS_TEST else 0
+        agent_num = args.agent_num if IS_TEST else 0
+        obstacle_prob = args.obstacle_prob if IS_TEST else 0
     
     # Read from input file
     print('Read from input ...')
@@ -370,16 +384,31 @@ def main():
     env = Environment(dimension, agents, obstacles)
     cbs = CBS(env)
     print('[INFO] Start initial searching ...')
-    solution = cbs.search()
+    solution = cbs.search(N, agent_num, obstacle_prob)
     print('[INFO] Initial searching end')
 
     if not solution:
+        if IS_TEST:
+            with open('consume_time_stats/results_' + str(agent_num) + 'agents_' + \
+                                    str(obstacle_prob) + '%.csv', 'a+', newline='') as csvfile:
+                writer = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                # writer.writerow(["consume_time", "cost"])
+                writer.writerow(["Not found", "Not found"])
         print("[ERROR] Initial solution not found" ) 
+        return
+
+    if IS_TEST:
+        print("[INFO] INITIAL FOUND SOLUTION: " + str(solution))
+        output = {}
+        output["schedule"] = solution
+        # output["cost"] = env.compute_solution_cost(solution)
+        with open(args.output, 'w') as output_yaml:
+            yaml.safe_dump(output, output_yaml) 
         return
 
     # Assign value to global variables(alive_agent_thread_num & DYNAMIC_OBSTACLES)
     alive_agent_thread_num = len(agents)
-    with open('dynamic_obstacle_pth.yaml', 'r') as d_obstacles_file:
+    with open('dy_obstacles/dynamic_obstacle_pth_1.yaml', 'r') as d_obstacles_file:
         try:
             DYNAMIC_OBSTACLES = yaml.load(d_obstacles_file, Loader=yaml.FullLoader)['schedule']
         except yaml.YAMLError as exc:

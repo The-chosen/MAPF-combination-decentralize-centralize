@@ -78,16 +78,17 @@ class Animation:
       self.artists.append(self.agent_names[name])
 
     # draw dynamic obstacles
-    for d, i in zip(map["obstacles"], range(0, len(map["obstacles"]))):
-      name = d["name"]
-      self.obstacles[name] = Circle((d["start"][0], d["start"][1]), 0.3, facecolor=Colors[1], edgecolor='black')
-      self.obstacles[name].original_face_color = Colors[1]
-      self.patches.append(self.obstacles[name])
-      self.T = max(self.T, self.obstacle_schedule["schedule"][name][-1]["t"])
-      self.obstacle_names[name] = self.ax.text(d["start"][0], d["start"][1], name.replace('obstacle', ''))
-      self.obstacle_names[name].set_horizontalalignment('center')
-      self.obstacle_names[name].set_verticalalignment('center')
-      self.artists.append(self.obstacle_names[name])
+    if 'obstacles' in map.keys():
+      for d, i in zip(map["obstacles"], range(0, len(map["obstacles"]))):
+        name = d["name"]
+        self.obstacles[name] = Circle((d["start"][0], d["start"][1]), 0.3, facecolor=Colors[1], edgecolor='black')
+        self.obstacles[name].original_face_color = Colors[1]
+        self.patches.append(self.obstacles[name])
+        self.T = max(self.T, self.obstacle_schedule["schedule"][name][-1]["t"])
+        self.obstacle_names[name] = self.ax.text(d["start"][0], d["start"][1], name.replace('obstacle', ''))
+        self.obstacle_names[name].set_horizontalalignment('center')
+        self.obstacle_names[name].set_verticalalignment('center')
+        self.artists.append(self.obstacle_names[name])
 
 
     # self.ax.set_axis_off()
@@ -131,8 +132,9 @@ class Animation:
     for obstacle_name, obstacle in self.combined_schedule_obstacle.items():
       pos = self.getState(i / 10, obstacle)
       p = (pos[0], pos[1])
-      self.obstacles[obstacle_name].center = p
-      self.obstacle_names[obstacle_name].set_position(p)
+      if 'obstacles' in map.keys():
+        self.obstacles[obstacle_name].center = p
+        self.obstacle_names[obstacle_name].set_position(p)
 
     # reset all colors
     for _,agent in self.agents.items():

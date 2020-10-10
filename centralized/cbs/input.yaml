@@ -20,9 +20,9 @@ agents:
 -   start: [27, 28]
     goal: [7, 27]
     name: agent6
-# -   start: [8, 20]
-#     goal: [10, 5]
-#     name: agent7
+-   start: [8, 20]
+    goal: [10, 5] 
+    name: agent7
 -   start: [30, 30]
     goal: [5, 12]
     name: agent8
@@ -245,7 +245,7 @@ map:
     - !!python/tuple [31, 30]
 obstacles:
 -   start: [26, 17]
-    goal: [30, 17]
+    goal: [26, 17]
     name: obstacle0
 -   start: [20, 22]
     goal: [16, 22]
