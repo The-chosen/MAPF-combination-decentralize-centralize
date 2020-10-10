@@ -1,0 +1,87 @@
+{
+    "parameters": {
+        "robotCloseDist": 0.1,
+        "pointsDistance": 0.3
+    },
+
+    "target": {
+        "goalConfiguration": [
+                    0.1, 0.1,
+                    0.9, 0.9]
+    },
+
+    "configurationspace": {
+        "agentState": [
+            {
+                "index": 0,
+                "dimension": 2,
+                "radius": 0.05,
+                "wsIndex": 0,
+                "position": [0.9, 0.9],
+                "waypoint": [0.0, 0.0],
+                "velocity": [0.0, 0.0]
+            },
+            {
+                "index": 1,
+                "dimension": 2,
+                "radius": 0.05,
+                "wsIndex": 0,
+                "position": [0.1, 0.1],
+                "waypoint": [0.0, 0.0],
+                "velocity": [0.0, 0.0]
+            }
+        ],
+
+        "workspace": [
+        {
+            "index": 0,
+            "ndim": 2,
+            "range_min": [
+                -0.5,
+                -0.1
+            ],
+            "range_max": [
+                1.4,
+                1.0
+            ],
+            "obstacles": [
+                {
+                    "type": "ObstaclePolygon",
+                    "value": [
+                        0.4,0.4,
+                        0.4,0.6,
+                        0.6,0.6,
+                        0.6,0.4
+                    ]
+                }
+            ]
+        }
+        ],
+
+        "constraints": {
+            "dimension": 4,
+            "parameters": [
+                {
+                    "type": "distance",
+                    "value": 0.1
+                }
+            ]
+        }
+    },
+
+    "motionplanning": {
+        "method": "rvo",
+        "parameters": {
+            "goalThreshold": 0.01,
+            "timeStep": 0.25,
+            "neighborDistance": 0.5,
+            "maxNeighbors": 10,
+            "timeHorizon": 4,
+            "timeHorizonObstacle": 4,
+            "radius": 0.1,
+            "maxSpeed": 0.1
+        }
+    },
+
+    "pathplanning": {}
+}
