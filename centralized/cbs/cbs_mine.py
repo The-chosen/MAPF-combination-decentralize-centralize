@@ -339,7 +339,7 @@ class HighLevelNode(object):
 @limited_time: the time limitation in anytime algorithm
 '''
 class CBS(object):
-    def __init__(self, environment, limited_time=120, is_add_constraint=False, decentralized_constraint_list=None):
+    def __init__(self, environment, limited_time=1, is_add_constraint=False, decentralized_constraint_list=None):
         self.env = environment 
         self.is_add_constraint = is_add_constraint
         self.decentralized_constraint_list = decentralized_constraint_list

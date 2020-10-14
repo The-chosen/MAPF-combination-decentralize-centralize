@@ -37,7 +37,7 @@ TIME_LIMIT = 20
 
 TIMESTEP_TIME = 0.5
 
-IS_TEST = True # If it's now testing cbs for initialization, then True.
+IS_TEST = False # If it's now testing cbs for initialization, then True.
 
 class Server(threading.Thread):
     """

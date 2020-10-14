@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import logging
+logging.basicConfig(level = logging.INFO,format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 import math
 import time
 import rospy
@@ -93,6 +97,7 @@ class PiosFacility(RobotariumABC):
         return self.poses
 
     def ros_callback(self, msg):
+        # print(msg.data)
         self.ros_sub = json.loads(msg.data)
 
     def image_callback(self, data):
@@ -230,16 +235,22 @@ class PiosFacility(RobotariumABC):
             self.figure.canvas.flush_events()
 
     def pointsToWorld(self, points):
+        # T = np.array([
+        #     [1.0012, -0.0009, -0.0017],
+        #     [0.0010, 0.9976, 0.0023],
+        #     [-345.6516, -503.8226, 476.9076]
+        # ])
         T = np.array([
-            [1.0012, -0.0009, -0.0017],
-            [0.0010, 0.9976, 0.0023],
-            [-345.6516, -503.8226, 476.9076]
+            [0.0010, -0.000, 0.00],
+            [-0.0000, 0.0010, -0.0000],
+            [-0.2945, -0.3194, 0.5064]
         ])
         X = np.array([points[0], points[1], 1])
         U = np.dot(X, T)
         U[0] = U[0] / U[2]
         U[1] = U[1] / U[2]
         point = [U[0], U[1]]
+        print('[DEBUG] x: ',point[0],'y: ',point[1])
         return point
 
     def stop(self):
@@ -273,13 +284,51 @@ class PiosFacility(RobotariumABC):
             x = tmp[robot_id]['x']
             y = tmp[robot_id]['y']
             angle = tmp[robot_id]['angle']
+            print('[DEBUG] ID: ', robot_id)
             location = self.pointsToWorld([x, y])
             for j in range(self.number_of_robots):
                 if self.tf_id[j] == robot_id:
                     self.poses[0, j] = location[0] - math.cos(angle) * delta
                     self.poses[1, j] = location[1] - math.sin(angle) * delta
                     self.poses[2, j] = angle
+        # logger.info("poses: " + self.poses)
         return self.poses
+
+
+
+# ########################### YY #########################################
+
+    def get_static_obs_position(self):
+        msg = self.ros_sub
+        delta = -0.0097
+        while len(msg) == 0:
+            msg = self.ros_sub
+        tmp = msg
+        ids = list(tmp.keys())
+        # marker(id) of static obs is 200, 201, ...
+        # marker(id) of static obs is 12, 13, 14, 15, 16, 17
+        obs_pos_ls = []
+        for i in range(len(ids)):
+            obs_id = ids[i]
+            print(obs_id)
+            if int(obs_id.split('_')[-1]) < 12 or int(obs_id.split('_')[-1]) > 17:
+                continue
+            x = tmp[obs_id]['x']
+            y = tmp[obs_id]['y']
+            # angle = tmp[obs_id]['angle']
+            print('[INFO] Static obs ID: ', obs_id)
+            location = self.pointsToWorld([x, y])
+            obs_pos_ls.append(location)
+
+            # for j in range(self.number_of_robots):
+            #     if self.tf_id[j] == robot_id:
+            #         self.poses[0, j] = location[0] - math.cos(angle) * delta
+            #         self.poses[1, j] = location[1] - math.sin(angle) * delta
+            #         self.poses[2, j] = angle
+        # logger.info("poses: " + self.poses)
+        return obs_pos_ls
+
+# ########################### YY #########################################
 
     def robot_id_tf(self, debug):
         if debug:
@@ -291,6 +340,7 @@ class PiosFacility(RobotariumABC):
                 msg = self.ros_sub
             tmp = msg
             ids = list(tmp.keys())
+            
             for i in range(self.number_of_robots):
                 self.tf_id[i] = ids[i]
 

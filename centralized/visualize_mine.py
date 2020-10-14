@@ -156,7 +156,8 @@ class Animation:
         if np.linalg.norm(pos1 - pos2) < 0.7:
           d1.set_facecolor('red')
           d2.set_facecolor('red')
-          # print("COLLISION! (agent-agent) ({}, {})".format(i, j))
+          print("COLLISION! (agent-agent) ({}, {})".format(i, j))
+          print("DISTANCE: ", np.linalg.norm(pos1 - pos2))
 
       # collision between agents and obstacles
       for j in range(0, len(obstacles_array)):
@@ -166,7 +167,8 @@ class Animation:
         pos2 = np.array(d2.center)
         if np.linalg.norm(pos1 - pos2) < 0.7:
           d1.set_facecolor('red')
-          # print("COLLISION! (agent-obstacle) ({}, {})".format(i, j))
+          print("COLLISION! (agent-obstacle) ({}, {})".format(i, j))
+          print("DISTANCE: ", np.linalg.norm(pos1 - pos2))
 
 
 

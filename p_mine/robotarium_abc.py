@@ -113,6 +113,7 @@ class RobotariumABC(ABC):
             plt.subplots_adjust(left=-0.03, right=1.03, bottom=-0.03, top=1.03, wspace=0, hspace=0)
 
     def set_velocities(self, ids, velocities):
+        
         # Threshold linear velocities
         idxs = np.where(np.abs(velocities[0, :]) > self.max_linear_velocity)
         velocities[0, idxs] = self.max_linear_velocity*np.sign(velocities[0, idxs])
@@ -121,6 +122,8 @@ class RobotariumABC(ABC):
         idxs = np.where(np.abs(velocities[1, :]) > self.max_angular_velocity)
         velocities[1, idxs] = self.max_angular_velocity*np.sign(velocities[1, idxs])
         self.velocities = velocities
+
+        print('[DEBUG] velocities: \n', velocities)
 
     @abstractmethod
     def get_poses(self):

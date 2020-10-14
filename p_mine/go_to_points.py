@@ -15,6 +15,23 @@ import itertools
 import random
 from navigationInterface import NavigationAdapter, Observation, ObservationAdapter, MotionSolutionAdapter
 import sys
+import yaml
+import numpy as np
+
+
+# ########################### YY #########################################
+# Global variables
+X_START = 0.4
+X_END = 2.4
+
+Y_START = 0.0
+Y_END = 1.2
+
+GRID_LENGTH = 0.1
+
+TRAJ_FILE_PATH = './traj.yaml'
+# ########################### YY #########################################
+
 
 class GoToPoints:
     def __init__(self):
@@ -67,6 +84,7 @@ class GoToPoints:
             initial_points = [[1], [1], [0]]
             self.move(initial_points, goal_points)
 
+
     def move_barrier_certificate(self, initial_points, goal_points):
         # define x initially
         if self.debug == 1:
@@ -117,6 +135,7 @@ class GoToPoints:
             time.sleep(0.033)
             self.facility.get_real_position()
 
+    # initial_points doesn't matter
     def move_rvo(self, initial_points, goal_points):
         # set start_points and goal_points
         start_points = []
@@ -128,11 +147,12 @@ class GoToPoints:
             x = self.facility.get_real_position()
         for i in range(self.N):
             start_points.append(x[0:2, i].tolist())
+            # print(goal_points)
             end_points.append(goal_points[0:2, i].tolist())
         start_points = [y for x in start_points for y in x]
         end_points = [y for x in end_points for y in x]
-        print(start_points)
-        print(end_points)
+        print("[INFO] start_points: ", start_points)
+        print("[INFO] end_points: ", end_points)
         self.navigator.reset(start_points, end_points)
 
         while np.size(at_pose(x, goal_points)) != self.N and self.stop_flag == 0:
@@ -168,15 +188,18 @@ class GoToPoints:
                         goal_points[2][i] = x[2][i]
                         self.dxu[1][i] = 0.0
             self.facility.set_velocities(np.arange(self.N), self.dxu)
-            print("dxu:", self.dxu)
-            print("arrival_car", self.arrival_car)
+            # print("dxu:", self.dxu)
+            # print("arrival_car", self.arrival_car)
             if self.debug == 1:
                 self.facility.step()
             else:
                 self.facility.step_real()
                 time.sleep(0.033)
                 x = self.facility.get_real_position()
+                print('[INFO] RVO real_position: \n', x)
+                print('[INFO] Goal position: \n', end_points)
                 self.facility.poses_publisher()
+        print("[INFO] Reach one point goal!!!")
 
     def head_to_rvo(self, goal_points):
         x = self.facility.get_poses()
@@ -295,7 +318,18 @@ class GoToPoints:
         else:
             y = np.linspace(0, 1, num=self.N)
         z = np.linspace(0, 0, num=self.N)
+        
         goal_points = np.array([x, y, z])
+        print('goal_points: ', goal_points)
+        self.move_to(goal_points)
+        self.stop_all()
+
+    def go_mine_try(self):
+        x = np.array([1, 0.75])
+        y = np.array([1, 0.2])
+        z = np.array([0, 0])
+        goal_points = np.array([x, y, z])
+        print('goal_points: ', goal_points)
         self.move_to(goal_points)
         self.stop_all()
 
@@ -328,9 +362,11 @@ class GoToPoints:
         else:
             initial_positions = self.facility.get_real_position()
         goal_points = initial_positions.copy()
+        print('[INFO] get_real_position: ', goal_points)
         for i in range(self.N):
             goal_points[0][i] += 1
             goal_points[2][i] = 0
+        print("[INFO] goal_points: ", goal_points)
         self.move_to(goal_points)
         self.stop_all()
 
@@ -365,6 +401,97 @@ class GoToPoints:
             self.head_to_head()
 
 
+# ########################### YY #########################################
+
+    # Transform grid coordinate to real position
+    def coord2real(self, x, y):
+        real_x = X_START + x * GRID_LENGTH + 0.5 * GRID_LENGTH
+        real_y = Y_START + y * GRID_LENGTH + 0.5 * GRID_LENGTH
+        return real_x, real_y
+
+    # Read trajectory list from file (in coordinate form)
+    def read_traj(self):
+        with open(TRAJ_FILE_PATH) as states_file:
+            self.traj = yaml.load(states_file, Loader=yaml.FullLoader)['schedule']
+        self.num_agents = len(self.traj.keys())
+        self.total_time = max({k: len(v) for k, v in self.traj.items()}.values())
+    
+    # Get positions of static obs
+    def get_pos_static_obs(self):
+        return self.facility.get_static_obs_position()
+
+    # Actual moving
+    def move_traj(self):
+        # self.pos_static_obs = self.get_pos_static_obs()
+        # print('[INFO] Position of static obs: ', self.pos_static_obs)
+        self.read_traj()
+        traj = []
+        # Generate traj array
+        for timestep in range(self.total_time):
+            x = np.array([])
+            y = np.array([])
+            z = np.zeros(self.num_agents)
+            for agent in range(self.num_agents):
+                agent_name = 'agent' + str(agent)
+                agent_traj = self.traj[agent_name]
+                if timestep + 1 > len(agent_traj):
+                    x_agent = agent_traj[-1]['x']
+                    y_agent = agent_traj[-1]['y']
+                else:
+                    x_agent = agent_traj[timestep]['x']
+                    y_agent = agent_traj[timestep]['y']
+                print(x_agent)
+                x_agent, y_agent = self.coord2real(x_agent, y_agent)
+                x = np.append(x, x_agent)
+                y = np.append(y, y_agent)
+            point = np.array([x, y, z])   
+            traj.append(point)
+        print("[IMPORTANT] Traj list: \n", traj)
+        
+        # Iterate traj
+        for i, pt in enumerate(traj):
+            print('[INFO] Timestep' + str(i) + ', position: ', pt)
+            self.move_to(pt)
+            print('[INFO] Timestep' + str(i) + ' finish!')
+
+        self.stop_all()
+
+
+    def move_trajectory(self):
+        # Pt 1
+        x = np.array([1, 0.75, 0.5])
+        y = np.array([1, 0.2, 1.1])
+        z = np.array([0, 0, 0])
+        goal_point1 = np.array([x, y, z])
+
+        # Pt 2
+        x = np.array([1.25, 0.75, 1])
+        y = np.array([1, 1, 0.6])
+        z = np.array([0, 0, 0])
+        goal_point2 = np.array([x, y, z])
+
+        # Pt 3
+        x = np.array([0.7, 1.1, 0.9])
+        y = np.array([0.7, 1.1, 0.9])
+        z = np.array([0, 0, 0])
+        goal_point3 = np.array([x, y, z])
+
+        # traj
+        traj = [goal_point1, goal_point2, goal_point3]
+
+        # iterate traj
+        for i, pt in enumerate(traj):
+            print('Point' + str(i) + ', position: ', pt)
+            self.move_to(pt)
+            print('Point' + str(i) + 'reached!')
+
+        # print('goal_points: ', goal_points)
+        # self.move_to(goal_points)
+        self.stop_all()
+
+
+# ########################### YY #########################################
+
 if __name__ == "__main__":
     nav = GoToPoints()
     listener = keyboard.Listener(on_press=nav.on_press)
@@ -388,4 +515,12 @@ if __name__ == "__main__":
         if sys.argv[1] == 'i':
             print('forward')
             nav.follow_straight_line()
+        if sys.argv[1] == 'y':
+            # nav.go_mine_try()
+            nav.move_traj()
     listener.join()
+
+
+'''
+
+'''
