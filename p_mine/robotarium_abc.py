@@ -123,7 +123,7 @@ class RobotariumABC(ABC):
         velocities[1, idxs] = self.max_angular_velocity*np.sign(velocities[1, idxs])
         self.velocities = velocities
 
-        print('[DEBUG] velocities: \n', velocities)
+        # print('[DEBUG] velocities: \n', velocities)
 
     @abstractmethod
     def get_poses(self):

@@ -13,7 +13,7 @@ from math import fabs
 from itertools import combinations
 from copy import deepcopy
  
-from cbs_expe.a_star_mine import AStar
+from algorithm.a_star_mine import AStar
 
 import time
 import signal
@@ -23,7 +23,7 @@ import csv
 
 W_L = 1.04
 W_H = 1.1
-IS_TEST = True
+IS_TEST = False
 
 class TimeoutException(Exception): pass
 
@@ -122,8 +122,6 @@ class Environment(object):
         self.dimension = dimension
         self.obstacles = obstacles
         self.obstacles_d = obstacles_d
-
-        print("FUCK: ", self.obstacles)
 
         self.agents = agents
         self.agent_dict = {}

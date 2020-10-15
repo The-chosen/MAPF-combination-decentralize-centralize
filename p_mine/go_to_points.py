@@ -17,7 +17,9 @@ from navigationInterface import NavigationAdapter, Observation, ObservationAdapt
 import sys
 import yaml
 import numpy as np
-
+from algorithm.multi_thread_mapf import *
+from algorithm.cbs_mine import Environment, CBS
+from algorithm.a_star_mine import *
 
 # ########################### YY #########################################
 # Global variables
@@ -27,9 +29,11 @@ X_END = 2.4
 Y_START = 0.0
 Y_END = 1.2
 
-GRID_LENGTH = 0.1
+GRID_LENGTH = 0.2
 
-TRAJ_FILE_PATH = './traj.yaml'
+TRAJ_FILE_PATH = './algorithm/traj.yaml' # output
+INPUT_FILE_PATH = './algorithm/input.yaml'
+INITIAL_SEARCH_TIME = 5
 # ########################### YY #########################################
 
 
@@ -151,8 +155,8 @@ class GoToPoints:
             end_points.append(goal_points[0:2, i].tolist())
         start_points = [y for x in start_points for y in x]
         end_points = [y for x in end_points for y in x]
-        print("[INFO] start_points: ", start_points)
-        print("[INFO] end_points: ", end_points)
+        # print("[INFO] start_points: ", start_points)
+        # print("[INFO] end_points: ", end_points)
         self.navigator.reset(start_points, end_points)
 
         while np.size(at_pose(x, goal_points)) != self.N and self.stop_flag == 0:
@@ -196,8 +200,8 @@ class GoToPoints:
                 self.facility.step_real()
                 time.sleep(0.033)
                 x = self.facility.get_real_position()
-                print('[INFO] RVO real_position: \n', x)
-                print('[INFO] Goal position: \n', end_points)
+                # print('[INFO] RVO real_position: \n', x)
+                # print('[INFO] Goal position: \n', end_points)
                 self.facility.poses_publisher()
         print("[INFO] Reach one point goal!!!")
 
@@ -409,6 +413,68 @@ class GoToPoints:
         real_y = Y_START + y * GRID_LENGTH + 0.5 * GRID_LENGTH
         return real_x, real_y
 
+    def real2coord(self, real_x, real_y):
+        x = (real_x - X_START) // GRID_LENGTH
+        y = (real_y - Y_START) // GRID_LENGTH
+        # if (real_x - X_START) % GRID_LENGTH < 0.5 * GRID_LENGTH :
+        #     x = (real_x - X_START) // GRID_LENGTH - 1
+        # else:
+        #     x = (real_x - X_START) // GRID_LENGTH - 1
+
+        # if (real_y - Y_START) % GRID_LENGTH < 0.5 * GRID_LENGTH :
+        #     y = (real_y - Y_START) // GRID_LENGTH - 1
+        # else:
+        #     y = (real_y - Y_START) // GRID_LENGTH - 1
+        return (int(x), int(y))
+
+    # Get positions of static obstacles & calculate the initial path
+    def calc_initial_traj(self):
+        with open(INPUT_FILE_PATH, 'r') as file:
+            try:
+                input_file = yaml.load(file, Loader=yaml.FullLoader)
+            except yaml.YAMLError as exc:
+                print(exc)
+
+        # Get agents & dim
+        agents = input_file['agents']
+        dimension = input_file["map"]["dimensions"]
+
+        # Get obstacles by using the camera
+        self.real_pos_static_obs = self.get_pos_static_obs()
+        print('[INFO] Position(real) of static obs: ', self.real_pos_static_obs)
+        self.coord_pos_static_obs = [self.real2coord(pos[0], pos[1]) for pos in self.real_pos_static_obs]
+        print('[INFO] Position(coord) of static obs: ', self.coord_pos_static_obs)
+        obstacles = self.coord_pos_static_obs
+
+        # Print real position of robots
+        print("[INFO] Real positions: ", self.facility.get_real_position())
+
+        # Initial searching 
+        env = Environment(dimension, agents, obstacles)
+        cbs = CBS(env, INITIAL_SEARCH_TIME)
+        print('[INFO] Start initial searching ...')
+        self.traj = cbs.search(None, None, None)
+        self.num_agents = len(self.traj.keys())
+        self.total_time = max({k: len(v) for k, v in self.traj.items()}.values())
+        print('[INFO] Initial searching end.')
+
+        # Save to file{input/output} (optional)
+        output = {}
+        output["schedule"] = self.traj
+        with open(TRAJ_FILE_PATH, 'w') as output_yaml:
+            yaml.safe_dump(output, output_yaml) 
+            print('[INFO] Traj written!')
+
+        input_file['map']['obstacles'] += obstacles
+        print("======================================================")
+        print(input_file)
+        print("======================================================")
+
+        # with open(INPUT_FILE_PATH, 'w') as input_yaml:
+        #     yaml.safe_dump(input_file, input_yaml) 
+
+
+
     # Read trajectory list from file (in coordinate form)
     def read_traj(self):
         with open(TRAJ_FILE_PATH) as states_file:
@@ -420,11 +486,11 @@ class GoToPoints:
     def get_pos_static_obs(self):
         return self.facility.get_static_obs_position()
 
-    # Actual moving
-    def move_traj(self):
-        # self.pos_static_obs = self.get_pos_static_obs()
-        # print('[INFO] Position of static obs: ', self.pos_static_obs)
-        self.read_traj()
+
+    # Generate traj
+    def gene_traj(self):
+        # self.read_traj()
+        self.calc_initial_traj()
         traj = []
         # Generate traj array
         for timestep in range(self.total_time):
@@ -440,19 +506,37 @@ class GoToPoints:
                 else:
                     x_agent = agent_traj[timestep]['x']
                     y_agent = agent_traj[timestep]['y']
-                print(x_agent)
+
                 x_agent, y_agent = self.coord2real(x_agent, y_agent)
                 x = np.append(x, x_agent)
                 y = np.append(y, y_agent)
             point = np.array([x, y, z])   
             traj.append(point)
-        print("[IMPORTANT] Traj list: \n", traj)
-        
+        # print("[IMPORTANT] Traj list: \n", traj)
+        return traj
+
+    # Actual moving
+    def move_traj(self):
+        # 1. Get positions of all robots and all static obstacles
+        pass
+
+        # 2. Calculate initial paths
+        pass
+
+        # 3. Let robots run by following the calculated paths
+        pass
+
+        # 4. Iterate and update paths during this timestep
+
+
+
+        traj = self.gene_traj()
+
         # Iterate traj
         for i, pt in enumerate(traj):
-            print('[INFO] Timestep' + str(i) + ', position: ', pt)
+            # print('[INFO] Timestep' + str(i) + ', position: ', pt)
             self.move_to(pt)
-            print('[INFO] Timestep' + str(i) + ' finish!')
+            # print('[INFO] Timestep' + str(i) + ' finish!')
 
         self.stop_all()
 

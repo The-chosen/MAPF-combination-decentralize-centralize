@@ -17,6 +17,12 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 
 
+# ########################### YY #########################################
+MARKER_STATIC = 12
+MARKER_DYNAMIC = 80
+
+# ########################### YY #########################################
+
 class PiosFacility(RobotariumABC):
     def __init__(self, number_of_robots=-1, show_figure=True, sim_in_real_time=True, initial_conditions=np.array([])):
         super().__init__(number_of_robots, show_figure, sim_in_real_time, initial_conditions)
@@ -62,6 +68,7 @@ class PiosFacility(RobotariumABC):
             msg = self.ros_sub
         tmp = msg
         ids = list(tmp.keys())
+        ids = [id for id in ids if int(id.split('_')[-1]) < MARKER_STATIC]
         for i in range(len(ids)):
             robot_id = ids[i]
             for j in range(self.number_of_robots):
@@ -279,12 +286,17 @@ class PiosFacility(RobotariumABC):
             msg = self.ros_sub
         tmp = msg
         ids = list(tmp.keys())
+        ids = [id for id in ids if int(id.split('_')[-1]) < MARKER_STATIC]
         for i in range(len(ids)):
+            # if int(ids[i].split('_')[-1])  >= 12:
+            #     continue
             robot_id = ids[i]
             x = tmp[robot_id]['x']
             y = tmp[robot_id]['y']
             angle = tmp[robot_id]['angle']
-            print('[DEBUG] ID: ', robot_id)
+
+            # print('[DEBUG]: Real robots ids: ', self.tf_id)
+
             location = self.pointsToWorld([x, y])
             for j in range(self.number_of_robots):
                 if self.tf_id[j] == robot_id:
@@ -305,19 +317,20 @@ class PiosFacility(RobotariumABC):
             msg = self.ros_sub
         tmp = msg
         ids = list(tmp.keys())
-        # marker(id) of static obs is 200, 201, ...
-        # marker(id) of static obs is 12, 13, 14, 15, 16, 17
+        ids = [id for id in ids if int(id.split('_')[-1]) >= MARKER_STATIC]
+        # marker(id) of static obs is > MARKER_STATIC
         obs_pos_ls = []
         for i in range(len(ids)):
             obs_id = ids[i]
-            print(obs_id)
-            if int(obs_id.split('_')[-1]) < 12 or int(obs_id.split('_')[-1]) > 17:
-                continue
+            # print(obs_id)
+            # if int(obs_id.split('_')[-1]) < 12 or int(obs_id.split('_')[-1]) > 17:
+            #     continue
             x = tmp[obs_id]['x']
             y = tmp[obs_id]['y']
             # angle = tmp[obs_id]['angle']
             print('[INFO] Static obs ID: ', obs_id)
             location = self.pointsToWorld([x, y])
+            print('[INFO] Static obs location: ', location)
             obs_pos_ls.append(location)
 
             # for j in range(self.number_of_robots):
@@ -339,9 +352,16 @@ class PiosFacility(RobotariumABC):
             while len(msg) == 0:
                 msg = self.ros_sub
             tmp = msg
-            ids = list(tmp.keys())
+            ids = list(tmp.keys()) # ids are real id detected by camera. e.g. ids:  ['robot_12', 'robot_13', 'robot_14', 'robot_15', 'robot_17']
+            # print('[DEBUG] ids: ', ids)
+            ids = [id for id in ids if int(id.split('_')[-1]) < MARKER_STATIC]
+            # print('[DEBUG] ids: ', ids)
             
             for i in range(self.number_of_robots):
+                # print("ids[i].split('_')[-1]: ", ids[i].split('_')[-1])
+                # # 80 >= marker >= 50 is static obs. 
+                # if int(ids[i].split('_')[-1])  >= 12:
+                #     continue
                 self.tf_id[i] = ids[i]
 
     def step_real(self):
@@ -360,6 +380,7 @@ class PiosFacility(RobotariumABC):
             msg = self.ros_sub
         tmp = msg
         ids = list(tmp.keys())
+        ids = [id for id in ids if int(id.split('_')[-1]) < MARKER_STATIC]
         count = 0
         for i in range(self.number_of_robots):
             self._called_step_already = True

@@ -166,6 +166,20 @@
 # #     goal: [10, 5]
 # #     name: obstacle9
 
+
+# agents:
+# -   start:  [6, 5]
+#     goal:  [5, 3]
+#     name: agent0
+# -   start:  [5, 4]
+#     goal:  [8, 4]
+#     name: agent1
+# -   start:  [8, 2]
+#     goal:  [5, 4]
+#     name: agent2
+# -   start:  [9, 1]
+#     goal:  [7, 1]
+#     name: agent3
 agents:
 -   start:  [6, 5]
     goal:  [5, 3]
@@ -185,31 +199,7 @@ map:
   - 12
   obstacles:
     - !!python/tuple [100, 100]
-    # - !!python/tuple [1, 1]
-  # - - 100
-  #   - 100
-  # - - 1
-  #   - 1
-  # - - 1.0
-  #   - 4.0
-  # - - 4.0
-  #   - 3.0
-  # - - 2.0
-  #   - 3.0
-  # - - 4.0
-  #   - 4.0
-  # - - 4.0
-  #   - 1.0
-  # - - 4.0
-  #   - 3.0
-  # - - 4.0
-  #   - 4.0
-  # - - 4.0
-  #   - 3.0
-  # - - 2.0
-  #   - 1.0
-  # - - 4.0
-  #   - 4.0
+    # - !!python/tuple [7, 4]
 obstacles:
 - goal:
   - 26
