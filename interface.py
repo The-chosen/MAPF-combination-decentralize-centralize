@@ -106,7 +106,7 @@ if __name__ == '__main__':
         if k=='i':
             print('forward')
             for i in range(2):
-                rb.set_velocities_data(0.02,0.0)
+                rb.set_velocities_data(0.08,0.0)
                 time.sleep(0.1)
         if k=='k':
             print('stop')
@@ -115,12 +115,12 @@ if __name__ == '__main__':
         if k=='l':
             print('left')
             for i in range(2):
-                rb.set_velocities_data(0,1)
+                rb.set_velocities_data(0,0.3)
                 time.sleep(0.1)
         if k=='j':
             print('right')
             for i in range(2):
-                rb.set_velocities_data(0,-1)
+                rb.set_velocities_data(0,-0.3)
                 time.sleep(0.1)
 
     if sys.argv[1] == 'client':

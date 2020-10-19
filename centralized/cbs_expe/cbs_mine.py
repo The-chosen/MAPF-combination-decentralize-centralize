@@ -21,9 +21,10 @@ from contextlib import contextmanager
 
 import csv
 
-W_L = 1.04
+W_L = 1.05
 W_H = 1.1
-IS_TEST = True
+IS_TEST = False
+IS_DEBUG_LEVEL = False
 
 class TimeoutException(Exception): pass
 
@@ -122,8 +123,6 @@ class Environment(object):
         self.dimension = dimension
         self.obstacles = obstacles
         self.obstacles_d = obstacles_d
-
-        print("FUCK: ", self.obstacles)
 
         self.agents = agents
         self.agent_dict = {}
@@ -494,7 +493,7 @@ class CBS(object):
 
                 # If there's no conflict for all paths of agents, solution if found!
                 if not conflict_dict:
-                    if (self.is_add_constraint): # 也就是有decentralized的更新 | USELESS NOW, self.is_add_constraint === FALSE
+                    if (self.is_add_constraint): # 也就是有decentralized的更新 | !!! USELESS NOW, self.is_add_constraint === FALSE
                         """
                         做三件事情：
                         1. 把更新过来的constraint加入到新node的constraint list里面，且继承父亲node的constraint list
@@ -538,6 +537,10 @@ class CBS(object):
                         num_sol += 1
                         has_found_sol = not has_found_sol
                         solutions.append(self.generate_plan(P.solution))
+                        self.open_set = set()
+                        self.focal_list = []
+                        # print("[INFO] >> SOLUTION:")
+                        # print(self.generate_plan(P.solution))
 
                         # output = {}
                         # output["schedule"] = self.generate_plan(P.solution)
@@ -572,7 +575,8 @@ class CBS(object):
                     # Update environment constraint
                     self.env.constraint_dict = new_node.constraint_dict # A*就是根据self.env.constraint_dict来得到solution的
 
-                    # 3. Update solution with new constraints added
+                    # 3. Update solution with new constraints added. Now we have the third param (agent), 
+                    #       it can make the compute_solution only compute path for this agent
                     new_node.solution = self.env.compute_solution(self.start_time, self.limited_time, agent, deepcopy(P.solution))
 
                     if new_node.solution == "OCCUPY":
@@ -618,7 +622,7 @@ class CBS(object):
                 if (len(self.open_set) != 0) and (self.w_h * f_min < self.w_h * f_min_new):
                     self.updateLowerBound(f_min, f_min_new)
 
-                print("[DEBUG] focal list: " + str(self.focal_list))
+                # print("[DEBUG] focal list: " + str(self.focal_list))
             
 
         return {}

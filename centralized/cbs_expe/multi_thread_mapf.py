@@ -29,13 +29,15 @@ pq = PriorityQueue()
 solution = None
 alive_agent_thread_num = None
 DYNAMIC_OBSTACLES = None
+INITIAL_RUNTIME = 3
+DEFAULT_TIME_LIMITATION = 5
 
 INF_NUM = 999999999999999
 R = 4
 THRESHOLD = 25
 TIME_LIMIT = 20
 
-TIMESTEP_TIME = 1
+TIMESTEP_TIME = 10
 
 IS_TEST = False # If it's now testing cbs for initialization, then True.
 
@@ -85,6 +87,8 @@ class Server(threading.Thread):
                     conflicts += conflict
                     if anytime_limitation_timestep < min_anytime_limitation_timestep:
                         min_anytime_limitation_timestep = anytime_limitation_timestep
+                    
+
                     if anytime_limitation < min_anytime_limitation:
                         min_anytime_limitation = anytime_limitation
                 # change agents start time
@@ -101,9 +105,11 @@ class Server(threading.Thread):
                 if len(conflicts) == 0:
                     continue
 
+                print("===========================================")
+
                 env = Environment(self.dimension, agents_cp, self.obstacles, obstacles_d=conflicts)
                 # Searching
-                print("===========================================")
+                
                 cbs = CBS(env, min_anytime_limitation)
                 print('[INFO] Start common searching ...')
                 print("[INFO] Anytime limitation: " + str(min_anytime_limitation))
@@ -129,6 +135,9 @@ class Server(threading.Thread):
                     solution_crr[agent] = solution_pre[agent][:min_anytime_limitation_timestep] + (list(map(f, solution_crr[agent]))) 
 
                 solution = solution_crr
+                print('[INFO] SOLUTION:')
+                print(solution)
+
                 compute_end_time = time.time()
                 print('[INFO] Common searching use time: ' + str(compute_end_time - compute_start_time))
 
@@ -184,6 +193,8 @@ class Agent(threading.Thread):
             #     '. Use time: ' + str(real_end - start_time) + '. Have collision points.')
             return
         conflict_list_agent, anytime_limitation, min_cost_pt = self.find_constraint_list()
+        if anytime_limitation == 'DEFAULT':
+            anytime_limitation = DEFAULT_TIME_LIMITATION
         pq.put((min_cost_pt, conflict_list_agent, anytime_limitation + timestep, anytime_limitation * self.timestep_time))
         
         # ↑↑↑↑↑ End things from above ↑↑↑↑↑
@@ -290,11 +301,16 @@ class Agent(threading.Thread):
         constraint_dict = {}
         conflict_list = []
         min_cost_pt = INF_NUM
+        is_path_change = False # whether there's point score > threshold. If yes -> True, else -> False
+
+
         for pt in self.detect_pt:
-            
+
             if 'score' not in pt.keys():
                 continue
+
             if pt['score'] >= self.threshold:
+                is_path_change = True
                 if pt['t'] - self.crr_t < min_cost_pt: # for calculating anytime
                     min_cost_pt = pt['t'] - self.crr_t
                 conflict_list.append((pt['x'], pt['y']))
@@ -305,7 +321,11 @@ class Agent(threading.Thread):
                 #     constraint = Constraints()
                 #     constraint.vertex_constraints |= {v_constraint}
                 #     constraint_dict[pt['agent_name']] = constraint
-        anytime_limitation = self.utils.anytime_func(min_cost_pt)
+        if is_path_change:
+            anytime_limitation = self.utils.anytime_func(min_cost_pt)
+        else:
+            anytime_limitation = 'DEFAULT'
+
 
         # V2: Add round space of dynamic obstacles 
         conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y']))
@@ -363,7 +383,7 @@ class Utils(object):
     t_crr: timestep of current agent.
     '''
     def anytime_func(self, cost):
-        return cost // 2 + 1
+        return cost // 2
 
 def main():
     global solution, alive_agent_thread_num, DYNAMIC_OBSTACLES
@@ -399,7 +419,7 @@ def main():
 
     # Initial searching 
     env = Environment(dimension, agents, obstacles)
-    cbs = CBS(env, 5)
+    cbs = CBS(env, INITIAL_RUNTIME)
     print('[INFO] Start initial searching ...')
     solution = cbs.search(N, agent_num, obstacle_prob)
     print('[INFO] Initial searching end')
