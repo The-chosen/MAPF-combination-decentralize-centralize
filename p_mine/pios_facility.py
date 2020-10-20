@@ -247,17 +247,18 @@ class PiosFacility(RobotariumABC):
         #     [0.0010, 0.9976, 0.0023],
         #     [-345.6516, -503.8226, 476.9076]
         # ])
+        
         T = np.array([
-            [0.0010, -0.000, 0.00],
-            [-0.0000, 0.0010, -0.0000],
-            [-0.2945, -0.3194, 0.5064]
+            [0.0011, 0.0000, 0.0001],
+            [0.0000, 0.0011, 0.0000],
+            [-0.1691, -0.1503, 0.6618]
         ])
         X = np.array([points[0], points[1], 1])
         U = np.dot(X, T)
         U[0] = U[0] / U[2]
         U[1] = U[1] / U[2]
         point = [U[0], U[1]]
-        print('[DEBUG] x: ',point[0],'y: ',point[1])
+        # print('[DEBUG] x: ',point[0],'y: ',point[1])
         return point
 
     def stop(self):

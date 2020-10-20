@@ -1,0 +1,6 @@
+schedule:
+  obstacle0:
+  - t: 0
+    x: 32
+    y: 32
+  

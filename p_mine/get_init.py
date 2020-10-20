@@ -5,7 +5,7 @@ from utilities.controllers import *
 class pios_facility_parameter:
     def __init__(self):
         self.method = "rvo"
-        self.N = 4
+        self.N = 5
         self.debug = 0
         self.linear_velocity_gain = 0.5
         self.angular_velocity_gain = 0.3

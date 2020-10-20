@@ -23,16 +23,16 @@ from algorithm.a_star_mine import *
 
 # ########################### YY #########################################
 # Global variables
-X_START = 0.4
+X_START = 0.0
 X_END = 2.4
 
 Y_START = 0.0
 Y_END = 1.2
 
-GRID_LENGTH = 0.2
+GRID_LENGTH = 0.12
 
-TRAJ_FILE_PATH = './algorithm/traj.yaml' # output
-INPUT_FILE_PATH = './algorithm/input.yaml'
+TRAJ_FILE_PATH = './algorithm/outputs/output_5ag_0dy_3sta_seed1.yaml' # output
+INPUT_FILE_PATH = './algorithm/inputs/input_5ag_0dy_3sta_seed1.yaml'
 INITIAL_SEARCH_TIME = 5
 # ########################### YY #########################################
 
@@ -404,6 +404,10 @@ class GoToPoints:
             print('head to head')
             self.head_to_head()
 
+    def get(self):
+        print('===============')
+        print(self.facility.get_real_position())
+        print('===============')
 
 # ########################### YY #########################################
 
@@ -439,7 +443,7 @@ class GoToPoints:
         agents = input_file['agents']
         dimension = input_file["map"]["dimensions"]
 
-        # Get obstacles by using the camera
+        # Get static obstacles by using the camera
         self.real_pos_static_obs = self.get_pos_static_obs()
         print('[INFO] Position(real) of static obs: ', self.real_pos_static_obs)
         self.coord_pos_static_obs = [self.real2coord(pos[0], pos[1]) for pos in self.real_pos_static_obs]
@@ -602,6 +606,8 @@ if __name__ == "__main__":
         if sys.argv[1] == 'y':
             # nav.go_mine_try()
             nav.move_traj()
+        if sys.argv[1] == 'm':
+            nav.get()
     listener.join()
 
 

@@ -383,7 +383,8 @@ class Utils(object):
     t_crr: timestep of current agent.
     '''
     def anytime_func(self, cost):
-        return cost // 2
+        # return cost // 2
+        return cost - 1
 
 def main():
     global solution, alive_agent_thread_num, DYNAMIC_OBSTACLES

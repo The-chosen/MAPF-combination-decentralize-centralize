@@ -124,7 +124,20 @@ class AStar():
         timestep = 0
 
         # HACK should be focal_list, but I change to open_set for now
+        # print("======== New A* ========")
         while focal_list:
+            # if agent_name == 'agent6':
+            #     print('[DEBUG] Focal list: ', end='')
+            #     for state in focal_list:
+            #         print(state, end="")
+
+            #     print()
+
+            #     print('[DEBUG] Open list: ', end='')
+            #     for state in open_set:
+            #         print(state, end="")
+            #     print()
+
             # See if exceed the time limitation
             end_time = time.time()
             
@@ -157,8 +170,8 @@ class AStar():
 
             timestep += 1
 
-            open_set -= {current}
-            closed_set |= {current}
+            # open_set -= {current}
+            # closed_set |= {current}
 
             # if agent_name == 'agent5':
             #     print(len(self.reconstruct_path(came_from, current)))
