@@ -44,7 +44,7 @@ def generate_initial_conditions(N, spacing=0.3, width=3, height=1.8):
 
     return poses
 
-def at_pose(states, poses, position_error=0.1, rotation_error=10): # old: pos_err = 0.05 rot_err = 0.2
+def at_pose(states, poses, position_error=0.05, rotation_error=10): # old: pos_err = 0.05 rot_err = 0.2
     """Checks whether robots are "close enough" to poses
 
     states: 3xN numpy array (of unicycle states)

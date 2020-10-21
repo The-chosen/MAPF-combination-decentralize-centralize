@@ -29,7 +29,7 @@ pq = PriorityQueue()
 solution = None
 alive_agent_thread_num = None
 DYNAMIC_OBSTACLES = None
-INITIAL_RUNTIME = 3
+INITIAL_RUNTIME = 15
 DEFAULT_TIME_LIMITATION = 5
 
 INF_NUM = 999999999999999
@@ -37,7 +37,7 @@ R = 4
 THRESHOLD = 25
 TIME_LIMIT = 20
 
-TIMESTEP_TIME = 10
+TIMESTEP_TIME = 3
 
 IS_TEST = False # If it's now testing cbs for initialization, then True.
 
@@ -301,6 +301,7 @@ class Agent(threading.Thread):
         constraint_dict = {}
         conflict_list = []
         min_cost_pt = INF_NUM
+        cost_pt_ls = []
         is_path_change = False # whether there's point score > threshold. If yes -> True, else -> False
 
 
@@ -311,7 +312,8 @@ class Agent(threading.Thread):
 
             if pt['score'] >= self.threshold:
                 is_path_change = True
-                if pt['t'] - self.crr_t < min_cost_pt: # for calculating anytime
+                cost_pt_ls.append(pt)
+                if pt['t'] - self.crr_t < min_cost_pt: # for calculating anytime, find the minimum one
                     min_cost_pt = pt['t'] - self.crr_t
                 conflict_list.append((pt['x'], pt['y']))
                 # v_constraint = VertexConstraint(pt['t'], Location(pt['x'], pt['y']))
@@ -322,7 +324,12 @@ class Agent(threading.Thread):
                 #     constraint.vertex_constraints |= {v_constraint}
                 #     constraint_dict[pt['agent_name']] = constraint
         if is_path_change:
-            anytime_limitation = self.utils.anytime_func(min_cost_pt)
+            cost_pt_ls = sorted(cost_pt_ls, key=lambda x: x['t'] - self.crr_t)
+            print("[INFO] <<<< ", end='')
+            for i in cost_pt_ls:
+                print(str(i['t'] - self.crr_t), end=' ')
+            anytime_limitation = self.utils.anytime_func(cost_pt_ls[int(len(cost_pt_ls) // 2)]['t'] - self.crr_t)
+            # anytime_limitation = self.utils.anytime_func(min_cost_pt)
         else:
             anytime_limitation = 'DEFAULT'
 
@@ -333,6 +340,14 @@ class Agent(threading.Thread):
         conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y']))
         conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] + 1))
         conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] - 1))
+        conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y'] + 1))
+        conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y'] - 1))
+        conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y'] + 1))
+        conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y'] - 1))
+        conflict_list.append((self.dyn_pos['x'] + 2, self.dyn_pos['y']))
+        conflict_list.append((self.dyn_pos['x'] - 2, self.dyn_pos['y']))
+        conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] + 2))
+        conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] - 2))
 
         return conflict_list, anytime_limitation, min_cost_pt
 

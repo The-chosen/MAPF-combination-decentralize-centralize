@@ -19,7 +19,7 @@ import cv2
 
 # ########################### YY #########################################
 MARKER_STATIC = 12
-MARKER_DYNAMIC = 80
+MARKER_DYNAMIC = 16
 
 # ########################### YY #########################################
 
@@ -318,7 +318,7 @@ class PiosFacility(RobotariumABC):
             msg = self.ros_sub
         tmp = msg
         ids = list(tmp.keys())
-        ids = [id for id in ids if int(id.split('_')[-1]) >= MARKER_STATIC]
+        ids = [id for id in ids if (int(id.split('_')[-1]) >= MARKER_STATIC and int(id.split('_')[-1]) <= MARKER_DYNAMIC)]
         # marker(id) of static obs is > MARKER_STATIC
         obs_pos_ls = []
         for i in range(len(ids)):
@@ -341,6 +341,29 @@ class PiosFacility(RobotariumABC):
             #         self.poses[2, j] = angle
         # logger.info("poses: " + self.poses)
         return obs_pos_ls
+
+    def get_dynamic_obs_position(self):
+        msg = self.ros_sub
+        delta = -0.0097
+        while len(msg) == 0:
+            msg = self.ros_sub
+        tmp = msg
+        ids = list(tmp.keys())
+        ids = [id for id in ids if int(id.split('_')[-1]) > MARKER_DYNAMIC]
+        # marker(id) of static obs is > MARKER_DYNAMIC
+        obs_pos_ls = []
+        for i in range(len(ids)):
+            obs_id = ids[i]
+            x = tmp[obs_id]['x']
+            y = tmp[obs_id]['y']
+            # angle = tmp[obs_id]['angle']
+            print('[INFO] Dynamic obs ID: ', obs_id)
+            location = self.pointsToWorld([x, y])
+            print('[INFO] Dynamic obs location: ', location)
+            obs_pos_ls.append(location)
+
+        return obs_pos_ls
+
 
 # ########################### YY #########################################
 

@@ -519,7 +519,7 @@ class GoToPoints:
         # print("[IMPORTANT] Traj list: \n", traj)
         return traj
 
-    # Actual moving
+    # Actual moving -> static obstacles
     def move_traj(self):
         # 1. Get positions of all robots and all static obstacles
         pass
@@ -539,10 +539,12 @@ class GoToPoints:
         # Iterate traj
         for i, pt in enumerate(traj):
             # print('[INFO] Timestep' + str(i) + ', position: ', pt)
-            self.move_to(pt)
+            self.move_to(pt) # Every move 
             # print('[INFO] Timestep' + str(i) + ' finish!')
 
         self.stop_all()
+
+    # def move_traj_dynamic(self):
 
 
     def move_trajectory(self):

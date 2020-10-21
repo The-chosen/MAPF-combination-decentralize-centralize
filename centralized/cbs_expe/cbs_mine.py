@@ -22,7 +22,7 @@ from contextlib import contextmanager
 import csv
 
 W_L = 1.05
-W_H = 1.1
+W_H = 1.005
 IS_TEST = False
 IS_DEBUG_LEVEL = False
 
@@ -325,6 +325,9 @@ class Environment(object):
         return plan
 
     def compute_solution_cost(self, solution):
+        if type(solution).__name__ == 'str':
+            print(solution)
+            return 'NO COST: ' + solution    
         return sum([len(path) for path in solution.values()])
 
 class HighLevelNode(object):
@@ -377,8 +380,8 @@ class CBS(object):
 
     def getNextBound(self):
         return_thing = self.w_h * self.gamma
-        if return_thing < 1.01:
-            print("[INFO] w_h < 1.01. Have been most optimal ~")
+        if return_thing < 1.001:
+            print("[INFO] w_h < 1.001. Have been most optimal ~")
             return "OPTIMAL"
         return return_thing
 
@@ -400,6 +403,9 @@ class CBS(object):
                 return "OVER", {}
             else:
                 return "OVER", solutions[len(solutions) - 1]
+
+        # if start.solution == "OCCUPY":
+        #     continue
 
         if not start.solution:
             return "OVER", {}
