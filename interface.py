@@ -95,7 +95,7 @@ class PiOSFacility:
     
 if __name__ == '__main__':
     # print(sys.argv)
-    rb = PiRobot('2','192.168.159.24')
+    rb = PiRobot('2','192.168.159.13')
     def on_press(key):
         if key==keyboard.Key.esc:
             return False

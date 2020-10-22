@@ -23,10 +23,62 @@ from algorithm.a_star_mine import *
 from go_to_points import GoToPoints
 import threading
 import argparse
+from copy import deepcopy
 
-
-TIMESTEP_TIME = 3 # Actual consumed time by one agent for one grid step
+TIMESTEP_TIME = 5 # Actual consumed time by one agent for one grid step
 IS_END = False
+THRESHOLD = 25 # Threshold for dangerous points acknowledgement
+R = 4
+INF_NUM = 999999999999999
+
+class Utils(object):
+    def __init__(self):
+        pass
+
+    '''
+    @Params:
+    pos_pt: Position of the point.
+    pos_obs: Position of the obstacle.
+    pos_agent: Position of the agent.
+    @Return:
+    Score of the point.
+    '''
+    def score_func(self, pos_pt, pos_obs, pos_agent):
+        dist = abs(pos_pt['x'] - pos_obs[0]) + abs(pos_pt['y'] - pos_obs[1])
+        cost = abs(pos_pt['x'] - pos_agent['x']) + abs(pos_pt['y'] - pos_agent['y'])
+        score = 0
+        if dist <= 1:
+            score = INF_NUM
+        elif dist <= 3:
+            score = THRESHOLD * 1
+        elif dist == 4:
+            score = THRESHOLD * 0.75
+        elif dist == 5:
+            score = THRESHOLD * 0.5
+        elif dist >= 6:
+            score = THRESHOLD * 0.1
+
+        if cost <= 3:
+            score *= 1
+        elif cost == 4:
+            score *= 0.8
+        elif cost == 5:
+            score *= 0.5
+        elif cost == 6:
+            score *= 0.2
+        elif cost >= 7:
+            score *= 0.1
+        return int(score)
+        
+
+    '''
+    @Params:
+    t_pos: timestep of the point.
+    t_crr: timestep of current agent.
+    '''
+    def anytime_func(self, cost):
+        # return cost // 2
+        return cost - 1
 
 
 
@@ -38,10 +90,11 @@ class PathPlanner(threading.Thread):
     """
     def __init__(self):
         threading.Thread.__init__(self)
+        self.utils = Utils()
 
 
     def run(self):
-        global nav, agents, solution, dimensions, static_obstacles, start_time
+        global nav, agents, solution, dimensions, static_obstacles, start_time, output_pth, crr_timestep
 
         while True:
             # Get dynamic obstacles by using the camera
@@ -51,8 +104,8 @@ class PathPlanner(threading.Thread):
             print('[INFO] Position(coord) of static obs: ', self.coord_pos_dynamic_obs)
             obstacles = self.coord_pos_dynamic_obs # Coordinary positions of dynamic obstacles
 
-            conflicts, anytime_limitation = self.calc_conflicts(obstacles, agent_paths)
-            anytime_limitation_timestep = (time.time() - start_time) // TIMESTEP_TIME + anytime_limitation
+            conflicts, anytime_limitation = self.calc_conflicts(obstacles)
+            anytime_limitation_timestep = crr_timestep + anytime_limitation
 
             # Change start point
             agents_cp = deepcopy(agents)
@@ -65,13 +118,46 @@ class PathPlanner(threading.Thread):
                 agent['start'] = [temp['x'], temp['y']]
                     
 
+            # Start updating paths using BCBS
             env = Environment(dimensions, agents_cp, static_obstacles, obstacles_d=conflicts)
             cbs = CBS(env, anytime_limitation * TIMESTEP_TIME)
+
+            compute_start_time = time.time()
             print('[INFO] Start common searching ...')
             print("[INFO] Anytime limitation: " + str(anytime_limitation * TIMESTEP_TIME))
             solution_crr = cbs.search()
 
+            # combine previous solution [:timestep + anytime_limitation] and new solution
+            if not solution_crr:
+                print('[ERROR] Solution not found!')
+                continue
+            print('[INFO] Common searching ends')
+
+            # Get previous solution
+            solution_pre = solution
+
+            # util: map function
+            def f(x):
+                x['t'] += anytime_limitation_timestep
+                return x
+
+            for agent in solution_pre.keys():
+                solution_crr[agent] = solution_pre[agent][:anytime_limitation_timestep] + (list(map(f, solution_crr[agent]))) 
+
+            solution = solution_crr
+            print('[INFO] COMMON SOLUTION:')
+            print(solution)
+
+            compute_end_time = time.time()
+            print('[INFO] Common searching use time: ' + str(compute_end_time - compute_start_time))
+
             # Write solution to output file (old + crr)
+            output = {}
+            output["schedule"] = solution
+            # output["cost"] = env.compute_solution_cost(solution)
+            with open(output_pth, 'w') as output_yaml:
+                yaml.safe_dump(output, output_yaml) 
+
 
             # If Mover decides to end, then return
             if IS_END:
@@ -83,9 +169,29 @@ class PathPlanner(threading.Thread):
     @ Outputs: 1. positions of dangerous points
                2. anytime limitaion
     '''
-    def calc_conflicts(self, dy_obs_pos, agent_paths):
-
-
+    def calc_conflicts(self, dy_obs_pos):
+        global solution
+        conflicts = []
+        anytime_limitaion = []
+        # Iterate each agent. And iterate points of each agent's path
+        for agent_name in solution.keys():
+            agent_path = solution[agent_name]
+            agent_pos = agent_path[0]
+            
+            for point in agent_path:
+                point_score = 0
+                if agent_pos == point:
+                    continue
+                for dy_obs in dy_obs_pos:
+                    if not (dy_obs[0] < R + agent_pos['x'] and dy_obs[0] > - R + agent_pos['x'] \
+                        and dy_obs[1] < R + agent_pos['y'] and dy_obs[1] > - R + agent_pos['y']):
+                        continue
+                    point_score += self.utils.score_func(point, dy_obs, agent_pos)
+                point['score'] = point_score
+                if point_score >= THRESHOLD:
+                    conflicts.append((point['x'], point['y']))
+                    anytime_limitaion.append(point['t'] - agent_pos['t'])
+        return conflicts, min(anytime_limitaion)
 
 class Mover(threading.Thread):
     """
@@ -97,12 +203,58 @@ class Mover(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        global nav
+        global nav, agents, solution, dimensions, static_obstacles, start_time, output_pth, crr_timestep
+        num_agents = len(solution.keys())
+        crr_timestep = 0
+        
+
+        while True:
+            start_time_timestep = time.time()
+
+            # Judege whether end
+            total_time = max([len(solution[agent_name]) for agent_name in solution.keys()])
+            if crr_timestep + 1 == total_time:
+                IS_END = True
+                return
+            
+            # Add the next timestep
+            x = np.array([])
+            y = np.array([])
+            z = np.zeros(num_agents)
+            for agent in range(num_agents):
+                agent_name = 'agent' + str(agent)
+                agent_traj = solution[agent_name]
+                if crr_timestep >= len(agent_traj):
+                    x_agent = agent_traj[len(agent_traj) - 1]['x']
+                    y_agent = agent_traj[len(agent_traj) - 1]['y']
+                else:
+                    x_agent = agent_traj[crr_timestep]['x']
+                    y_agent = agent_traj[crr_timestep]['y']
+
+                x_agent, y_agent = nav.coord2real(x_agent, y_agent)
+                x = np.append(x, x_agent)
+                y = np.append(y, y_agent)
+            point = np.array([x, y, z])   
+
+            # Actual moving agents
+            nav.move_to(point)
+
+            # Ensure every timestep the same length
+            end_time_timestep = time.time()
+            consume_time = end_time_timestep - start_time_timestep
+            if consume_time > TIMESTEP_TIME:
+                print("[ERROR] " + crr_timestep + " timestep consume time exceed!!! Use time: " + str(consume_time))
+            else:
+                print("[INFO] Sleeping " + str(consume_time - TIMESTEP_TIME))
+                time.sleep(consume_time - TIMESTEP_TIME)
+
+            crr_timestep += 1
+
 
 
 
 if __name__ == "__main__":
-    global nav, agents, solution, dimensions, static_obstacles, start_time
+    global nav, agents, solution, dimensions, static_obstacles, start_time, output_pth
 
     start_time = time.time()
 
@@ -115,9 +267,11 @@ if __name__ == "__main__":
     parser.add_argument("dynamic_obs_pth", help="path of file recording dynamic obs")
     args = parser.parse_args()
 
+    # Detect static obstacles and calculate initial paths
+    nav.calc_initial_traj(args.input_pth, args.output_pth)
 
     # Read from input file
-    print('Read from input ...')
+    print('[INFO] Read from input ...')
     with open(args.input_pth, 'r') as input_:
         try:
             input_file = yaml.load(input_, Loader=yaml.FullLoader)
@@ -129,7 +283,8 @@ if __name__ == "__main__":
     agents = input_file['agents']
 
     # Read from output file
-    print('Read from output ...')
+    print('[INFO] Read from output ...')
+    output_pth = args.output_pth
     with open(args.output_pth, 'r') as output_:
         try:
             output_file = yaml.load(output_, Loader=yaml.FullLoader)
@@ -163,4 +318,14 @@ if __name__ == "__main__":
             nav.move_traj()
         if sys.argv[1] == 'm':
             nav.get()
+        if sys.argv[1] == 'q':
+            threads = [PathPlanner(), Mover()]
+            # Start threads
+            for thr in threads:
+                thr.start()
+
+            for thr in threads:
+                if thr.is_alive():
+                    thr.join()
+            
     listener.join()

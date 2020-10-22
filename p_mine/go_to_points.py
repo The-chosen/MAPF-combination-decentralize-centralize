@@ -17,13 +17,13 @@ from navigationInterface import NavigationAdapter, Observation, ObservationAdapt
 import sys
 import yaml
 import numpy as np
-from algorithm.multi_thread_mapf import *
-from algorithm.cbs_mine import Environment, CBS
-from algorithm.a_star_mine import *
+# from algorithm.multi_thread_mapf import *
+# from algorithm.cbs_mine import Environment, CBS
+# from algorithm.a_star_mine import *
 
 # ########################### YY #########################################
 # Global variables
-X_START = 0.0
+X_START = 0.4
 X_END = 2.4
 
 Y_START = 0.0
@@ -432,8 +432,8 @@ class GoToPoints:
         return (int(x), int(y))
 
     # Get positions of static obstacles & calculate the initial path
-    def calc_initial_traj(self):
-        with open(INPUT_FILE_PATH, 'r') as file:
+    def calc_initial_traj(self, input_file_pth = INPUT_FILE_PATH, output_file_pth = TRAJ_FILE_PATH):
+        with open(input_file_pth, 'r') as file:
             try:
                 input_file = yaml.load(file, Loader=yaml.FullLoader)
             except yaml.YAMLError as exc:
@@ -465,7 +465,7 @@ class GoToPoints:
         # Save to file{input/output} (optional)
         output = {}
         output["schedule"] = self.traj
-        with open(TRAJ_FILE_PATH, 'w') as output_yaml:
+        with open(output_file_pth, 'w') as output_yaml:
             yaml.safe_dump(output, output_yaml) 
             print('[INFO] Traj written!')
 
@@ -474,6 +474,13 @@ class GoToPoints:
         print(input_file)
         print("======================================================")
 
+        input_f = open(input_file_pth, 'a')
+        input_f.write('map:\n')
+        input_f.write('    dimensions: [' + str(int((X_END - X_START) // GRID_LENGTH)) + ', ' \
+             + str(int((Y_END - Y_START) // GRID_LENGTH)) + ']\n')
+        input_f.write('    obstacles:' + '\n')
+        for obstacle in obstacles:
+            input_f.write('    - !!python/tuple ' + str([obstacle[0], obstacle[1]]) + '\n')
         # with open(INPUT_FILE_PATH, 'w') as input_yaml:
         #     yaml.safe_dump(input_file, input_yaml) 
 
