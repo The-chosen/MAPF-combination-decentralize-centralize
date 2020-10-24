@@ -121,6 +121,7 @@ class RobotariumABC(ABC):
         # Threshold angular velocities
         idxs = np.where(np.abs(velocities[1, :]) > self.max_angular_velocity)
         velocities[1, idxs] = self.max_angular_velocity*np.sign(velocities[1, idxs])
+        print(velocities)
         self.velocities = velocities
 
         # print('[DEBUG] velocities: \n', velocities)

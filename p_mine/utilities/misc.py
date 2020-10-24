@@ -44,7 +44,7 @@ def generate_initial_conditions(N, spacing=0.3, width=3, height=1.8):
 
     return poses
 
-def at_pose(states, poses, position_error=0.03, rotation_error=100): # old: pos_err = 0.05 rot_err = 0.2
+def at_pose(states, poses, position_error=0.005, rotation_error=0.1): # old: pos_err = 0.05 rot_err = 0.2
     """Checks whether robots are "close enough" to poses
 
     states: 3xN numpy array (of unicycle states)
@@ -52,6 +52,13 @@ def at_pose(states, poses, position_error=0.03, rotation_error=100): # old: pos_
 
     -> 1xN numpy index array (of agents that are close enough)
     """
+    # print("((((((((((((")
+    # print("NOW:")
+    # print(states)
+    # print("GOAL:")
+    # print(poses)
+    # print("))))))))))))")
+
     #Check user input types
     assert isinstance(states, np.ndarray), "In the at_pose function, the robot current state argument (states) must be a numpy ndarray. Recieved type %r." % type(states).__name__
     assert isinstance(poses, np.ndarray), "In the at_pose function, the checked pose argument (poses) must be a numpy ndarray. Recieved type %r." % type(poses).__name__
@@ -72,6 +79,30 @@ def at_pose(states, poses, position_error=0.03, rotation_error=100): # old: pos_
 
     # Determine which agents are done
     done = np.nonzero((res <= rotation_error) & (pes <= position_error))
+
+    # print(">>>>>>>>>>>>>>>>>> ", done)
+    if done[0].size == 5:
+        input_f = open('./log.txt', 'a')
+        input_f.write("=======================\n")
+        input_f.write(str(pes))
+        input_f.write("\n")
+        input_f.write(str(position_error))
+        input_f.write("\n")
+        input_f.write('------\n')
+        input_f.write(str(states))
+        input_f.write("\n")
+        input_f.write(str(poses))
+        input_f.write("\n")
+        input_f.write("=======================")
+        input_f.write("\n")
+        input_f.close()
+        # print("=======================")
+        # print(pes)
+        # print(position_error)
+        # print('------')
+        # print(states)
+        # print(poses)
+        # print("=======================")
 
     return done
 

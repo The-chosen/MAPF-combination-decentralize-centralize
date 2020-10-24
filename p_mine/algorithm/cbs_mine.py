@@ -13,8 +13,8 @@ from math import fabs
 from itertools import combinations
 from copy import deepcopy
  
-# from algorithm.a_star_mine import AStar
-from a_star_mine import AStar
+from algorithm.a_star_mine import AStar
+# from a_star_mine import AStar
 
 import time
 import signal

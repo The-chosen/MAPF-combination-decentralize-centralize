@@ -18,8 +18,8 @@ import cv2
 
 
 # ########################### YY #########################################
-MARKER_STATIC = 12
-MARKER_DYNAMIC = 16
+MARKER_STATIC = 13
+MARKER_DYNAMIC = 20
 
 # ########################### YY #########################################
 
@@ -249,9 +249,12 @@ class PiosFacility(RobotariumABC):
         # ])
 
         tform =np.array([
-            [934.8204 , -2.8397  , -0.0487], 
-            [-35.2294 , 980.6578  , -0.0106], 
-            [797.9180 , 402.2498   , 1.6045]])        
+            [841.8, -60.9, -0.1],
+            [-5.8, 923.9, -0.0],
+            [1016.2, 225.4, 1.5]])
+            # [934.8204 , -2.8397  , -0.0487], 
+            # [-35.2294 , 980.6578  , -0.0106], 
+            # [797.9180 , 402.2498   , 1.6045]        
         X = np.array([points[0], points[1], 1])        
         U = np.linalg.solve(tform.T,X.T).T
         
@@ -411,9 +414,14 @@ class PiosFacility(RobotariumABC):
             msg = self.ros_sub
         tmp = msg
         ids = list(tmp.keys())
+        print(ids)
         ids = [id for id in ids if int(id.split('_')[-1]) < MARKER_STATIC]
         count = 0
         for i in range(self.number_of_robots):
+            print(self.number_of_robots)
+            print(ids)
+
+
             self._called_step_already = True
             self._checked_poses_already = False
             if self.tf_id[i] == ids[count]:

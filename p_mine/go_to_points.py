@@ -17,19 +17,27 @@ from navigationInterface import NavigationAdapter, Observation, ObservationAdapt
 import sys
 import yaml
 import numpy as np
-# from algorithm.multi_thread_mapf import *
-# from algorithm.cbs_mine import Environment, CBS
-# from algorithm.a_star_mine import *
-
+from algorithm.multi_thread_mapf import *
+from algorithm.cbs_mine import Environment, CBS
+from algorithm.a_star_mine import *
+from interface import *
 # ########################### YY #########################################
+
+'''
+3.14: right
+-1.57: down
+0: left
+1.57: up
+'''
+
 # Global variables
-X_START = 0.4
-X_END = 2.4
+X_START = 0.0
+X_END = 1.7
 
 Y_START = 0.0
-Y_END = 1.2
+Y_END = 0.8
 
-GRID_LENGTH = 0.12
+GRID_LENGTH = 0.1
 
 TRAJ_FILE_PATH = './algorithm/outputs/output_5ag_0dy_3sta_seed1.yaml' # output
 INPUT_FILE_PATH = './algorithm/inputs/input_5ag_0dy_3sta_seed1.yaml'
@@ -70,6 +78,9 @@ class GoToPoints:
 
         # Create barrier certificates to avoid collision
         self.uni_barrier_cert = create_unicycle_barrier_certificate()
+
+        # YY part
+        self.rb = PiRobot('2','192.168.159.14')
 
     def model(self):
         return self.debug
@@ -139,8 +150,21 @@ class GoToPoints:
             time.sleep(0.033)
             self.facility.get_real_position()
 
+    
+    def move_directly(self):
+        self.facility.get_poses()
+        self.facility.get_real_position()
+        vel = np.array([[0.5, 0]])
+        self.facility.set_velocities(np.arange(self.N), self.dxu)
+        self.facility.step_real()
+        self.facility.poses_publisher()
+
+
     # initial_points doesn't matter
     def move_rvo(self, initial_points, goal_points):
+        # print("{{{{{{{{{{{{{{{{{{{{")
+        # print(goal_points)
+        # print("}}}}}}}}}}}}}}}}}}}}")
         # set start_points and goal_points
         start_points = []
         end_points = []
@@ -191,6 +215,9 @@ class GoToPoints:
                     if np.linalg.norm(x[2, i] - goal_points[2, i]) < self.rotation_error:
                         goal_points[2][i] = x[2][i]
                         self.dxu[1][i] = 0.0
+            print("_______________")
+            print(self.dxu)
+            print("_______________")
             self.facility.set_velocities(np.arange(self.N), self.dxu)
             # print("dxu:", self.dxu)
             # print("arrival_car", self.arrival_car)
@@ -413,23 +440,82 @@ class GoToPoints:
 
     # Transform grid coordinate to real position
     def coord2real(self, x, y):
-        real_x = X_START + x * GRID_LENGTH + 0.5 * GRID_LENGTH
-        real_y = Y_START + y * GRID_LENGTH + 0.5 * GRID_LENGTH
+        real_x = X_START + x * GRID_LENGTH # + 0.5 * GRID_LENGTH
+        real_y = Y_START + y * GRID_LENGTH # + 0.5 * GRID_LENGTH
         return real_x, real_y
 
     def real2coord(self, real_x, real_y):
-        x = (real_x - X_START) // GRID_LENGTH
-        y = (real_y - Y_START) // GRID_LENGTH
-        # if (real_x - X_START) % GRID_LENGTH < 0.5 * GRID_LENGTH :
-        #     x = (real_x - X_START) // GRID_LENGTH - 1
-        # else:
-        #     x = (real_x - X_START) // GRID_LENGTH - 1
+        # x = (real_x - X_START) // GRID_LENGTH
+        # y = (real_y - Y_START) // GRID_LENGTH
+        if (real_x - X_START) % GRID_LENGTH < 0.5 * GRID_LENGTH :
+            x = (real_x - X_START) // GRID_LENGTH
+        else:
+            x = (real_x - X_START) // GRID_LENGTH + 1
 
-        # if (real_y - Y_START) % GRID_LENGTH < 0.5 * GRID_LENGTH :
-        #     y = (real_y - Y_START) // GRID_LENGTH - 1
-        # else:
-        #     y = (real_y - Y_START) // GRID_LENGTH - 1
+        if (real_y - Y_START) % GRID_LENGTH < 0.5 * GRID_LENGTH :
+            y = (real_y - Y_START) // GRID_LENGTH
+        else:
+            y = (real_y - Y_START) // GRID_LENGTH + 1
         return (int(x), int(y))
+
+    def forward(self):
+        self.rb.set_velocities_data(0.048, 0.0)
+        time.sleep(2)
+        # self.rb.set_velocities_data(0.0, 0.0)
+    
+    def turn_left(self):
+        self.rb.set_velocities_data(0.0, 0.785)
+        time.sleep(2)
+        # self.rb.set_velocities_data(0.0, 0.0)
+
+    def turn_right(self):
+        self.rb.set_velocities_data(0.0, -0.785)
+        time.sleep(2)
+        # self.rb.set_velocities_data(0.0, 0.0)
+
+    def still(self):
+        self.rb.set_velocities_data(0.0, 0.0)
+        time.sleep(2)
+
+    def coord_traj2move(self, traj):
+        traj_length = len(traj)
+        cmd_ls = []
+        for i, pt in enumerate(traj):
+            turn = None
+            if i == traj_length - 1:
+                cmd_ls.append('still')
+                cmd_ls.append('still')
+            elif i== 0:
+                crr_ = pt
+                next_ = traj[i + 1]
+                if next_[1] == crr_[1]:
+                    if next_[0] == crr_[0] + 1:
+                        cmd_ls.append('still')
+                        cmd_ls.append('still')
+                    elif next_[0] == crr_[0] - 1:
+                        cmd_ls.append('right')
+                        cmd_ls.append('right')
+                    else:
+                        cmd_ls.append('still')
+                        cmd_ls.append('still')
+                elif next_[0] == crr_[0]:
+                    if next_[1] == crr_[1] + 1:
+                        cmd_ls.append('right')
+                        cmd_ls.append('still')
+                    elif next_[1] == crr_[1] - 1:
+                        cmd_ls.append('left')
+                        cmd_ls.append('still')
+                    else:
+                        cmd_ls.append('still')
+                        cmd_ls.append('still')   
+            else:
+                crr_ = pt
+                pre_ = traj[i - 1]
+                next_ = traj[i + 1]
+                cmd_ls.append('forward')
+
+                
+
 
     # Get positions of static obstacles & calculate the initial path
     def calc_initial_traj(self, input_file_pth = INPUT_FILE_PATH, output_file_pth = TRAJ_FILE_PATH):
@@ -474,6 +560,14 @@ class GoToPoints:
         print(input_file)
         print("======================================================")
 
+        # Write agents
+        agents_yml = {}
+        agents_yml['agents'] = input_file['agents']
+
+        with open(INPUT_FILE_PATH, 'w') as input_yaml:
+            yaml.safe_dump(agents_yml, input_yaml)  
+
+        # Write static obstacles
         input_f = open(input_file_pth, 'a')
         input_f.write('map:\n')
         input_f.write('    dimensions: [' + str(int((X_END - X_START) // GRID_LENGTH)) + ', ' \
@@ -481,9 +575,15 @@ class GoToPoints:
         input_f.write('    obstacles:' + '\n')
         for obstacle in obstacles:
             input_f.write('    - !!python/tuple ' + str([obstacle[0], obstacle[1]]) + '\n')
-        # with open(INPUT_FILE_PATH, 'w') as input_yaml:
-        #     yaml.safe_dump(input_file, input_yaml) 
 
+        # Write dy obs
+        input_f.write('obstacles:\n')
+        input_f.write('-   start: [0, 0]\n')
+        input_f.write('    goal: [32, 32]\n')
+        input_f.write('    name: obstacle0\n')
+        
+        # Close file
+        input_f.close()
 
 
     # Read trajectory list from file (in coordinate form)
@@ -555,31 +655,50 @@ class GoToPoints:
 
 
     def move_trajectory(self):
-        # Pt 1
-        x = np.array([1, 0.75, 0.5])
-        y = np.array([1, 0.2, 1.1])
-        z = np.array([0, 0, 0])
-        goal_point1 = np.array([x, y, z])
+        agent_1 = [(0, 0), (0, 1)]
+        # agent_1 = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (1, 4), (2, 4), (3, 4)]
+        # agent_1 = [(12, 6), (11, 6), (10, 6), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 7)]
+        traj = []
+        for point in agent_1:
+            real_pt_x, real_pt_y = self.coord2real(point[0], point[1])
+            x = np.array([real_pt_x])
+            y = np.array([real_pt_y])
+            z = np.array([0])
+            goal_point = np.array([x, y, z])
+            traj.append(goal_point)
+        
 
-        # Pt 2
-        x = np.array([1.25, 0.75, 1])
-        y = np.array([1, 1, 0.6])
-        z = np.array([0, 0, 0])
-        goal_point2 = np.array([x, y, z])
 
-        # Pt 3
-        x = np.array([0.7, 1.1, 0.9])
-        y = np.array([0.7, 1.1, 0.9])
-        z = np.array([0, 0, 0])
-        goal_point3 = np.array([x, y, z])
+        # # Pt 1
+        # x = np.array([1, 0.75, 0.5])
+        # y = np.array([1, 0.2, 1.1])
+        # z = np.array([0, 0, 0])
+        # goal_point1 = np.array([x, y, z])
 
-        # traj
-        traj = [goal_point1, goal_point2, goal_point3]
+        # # Pt 2
+        # x = np.array([1.25, 0.75, 1])
+        # y = np.array([1, 1, 0.6])
+        # z = np.array([0, 0, 0])
+        # goal_point2 = np.array([x, y, z])
+
+        # # Pt 3
+        # x = np.array([0.7, 1.1, 0.9])
+        # y = np.array([0.7, 1.1, 0.9])
+        # z = np.array([0, 0, 0])
+        # goal_point3 = np.array([x, y, z])
+
+        # # traj
+        # traj = [goal_point1, goal_point2, goal_point3]
 
         # iterate traj
         for i, pt in enumerate(traj):
             print('Point' + str(i) + ', position: ', pt)
+            print("Goal points: ")
+            print(pt)
             self.move_to(pt)
+            print("=======================")
+            print(self.facility.get_real_position())
+            print("=======================")
             print('Point' + str(i) + 'reached!')
 
         # print('goal_points: ', goal_points)
@@ -614,9 +733,68 @@ if __name__ == "__main__":
             nav.follow_straight_line()
         if sys.argv[1] == 'y':
             # nav.go_mine_try()
-            nav.move_traj()
+            # nav.move_traj()
+            nav.move_trajectory()
         if sys.argv[1] == 'm':
             nav.get()
+        if sys.argv[1] == 'g':
+            # nav.move_directly()
+            '''
+            linear: 0.5 -> 2s
+            ang: 0.785 -> 2s. +: left, -: right
+            z: [-0.5, 0.5] -> x+  |  [-2, -1] -> y-  |  [1, 2] -> y+  |  [-inf, -2.5] or [2.5, +inf] -> x-
+            '''
+            # nav.rb.set_velocities_data(0.05, 0.0)
+            # time.sleep(2)
+            # nav.rb.set_velocities_data(0.0, 0.0)
+            # nav.forward()
+            # nav.turn_right()
+            # nav.forward()
+            # nav.still()
+            # nav.turn_left()
+            # nav.forward()
+            # nav.turn_right()
+            # nav.forward()
+            # nav.turn_left()
+            # nav.forward()
+            # nav.turn_right()
+            # nav.forward()
+            # nav.turn_left()
+            # nav.forward()
+            # nav.turn_right()
+            # nav.forward()
+            # nav.turn_left()
+            # nav.forward()
+            # nav.still()
+
+            # s = time.time()
+            # rb = PiRobot('2','192.168.159.14')
+            # rb.set_velocities_data(0.05, 0.0)
+            # time.sleep(2)
+            # rb.set_velocities_data(0.0, -0.785)
+            # time.sleep(2)
+            # rb.set_velocities_data(0.05, 0.0)
+            # time.sleep(2)
+            # rb.set_velocities_data(0.0, +0.785)
+            # time.sleep(2)
+            # rb.set_velocities_data(0.05, 0.0)
+            # time.sleep(2)
+            # rb.set_velocities_data(0.0,0.0)
+
+            rb = PiRobot('2','192.168.159.14')
+            # rb.set_velocities_data(-0.05, 0.0)
+            # time.sleep(2)
+            rb.set_velocities_data(0.0, -0.785)
+            time.sleep(2)
+            rb.set_velocities_data(0.0, 0.0)
+            
+            
+            
+            # for i in range(2):
+            #     rb.set_velocities_data(0.08,0.0)
+            #     print("111")
+            #     time.sleep(0.1)
+            
     listener.join()
 
 

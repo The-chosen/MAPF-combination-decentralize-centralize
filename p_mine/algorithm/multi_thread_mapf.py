@@ -21,11 +21,11 @@ import eventlet
 import threading
 from queue import PriorityQueue
 
-# from algorithm.a_star_mine import AStar
-# from algorithm.cbs_mine import *
+from algorithm.a_star_mine import AStar
+from algorithm.cbs_mine import *
 
-from a_star_mine import AStar
-from cbs_mine import *
+# from a_star_mine import AStar
+# from cbs_mine import *
 
 # eventlet.monkey_patch()
 

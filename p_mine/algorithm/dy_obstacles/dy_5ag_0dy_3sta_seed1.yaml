@@ -4,3 +4,11 @@ schedule:
     x: 32
     y: 32
   
+schedule:
+  obstacle0:
+  - t: 0
+    x: 16
+    y: 3
+  - t: 1
+    x: 16
+    y: 3

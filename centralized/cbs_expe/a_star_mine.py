@@ -126,6 +126,11 @@ class AStar():
         # HACK should be focal_list, but I change to open_set for now
         # print("======== New A* ========")
         while focal_list:
+            # if agent_name == 'agent0':
+            #     for ele in focal_list:
+            #         print(ele, end=', ')
+            #     print()
+
             # if agent_name == 'agent6':
             #     print('[DEBUG] Focal list: ', end='')
             #     for state in focal_list:

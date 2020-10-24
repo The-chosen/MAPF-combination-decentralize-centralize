@@ -288,6 +288,15 @@ class Agent(threading.Thread):
             return False
         
         return self.detect_pt
+
+    def is_goal_pt(self, x, y):
+        global agents
+        for agent in agents:
+            if (x, y) == (agent['goal'][0], agent['goal'][1]):
+                return True
+        return False
+
+
     
     '''
     @Params: 
@@ -315,7 +324,8 @@ class Agent(threading.Thread):
                 cost_pt_ls.append(pt)
                 if pt['t'] - self.crr_t < min_cost_pt: # for calculating anytime, find the minimum one
                     min_cost_pt = pt['t'] - self.crr_t
-                conflict_list.append((pt['x'], pt['y']))
+                if not self.is_goal_pt(pt['x'], pt['y']):
+                    conflict_list.append((pt['x'], pt['y']))
                 # v_constraint = VertexConstraint(pt['t'], Location(pt['x'], pt['y']))
                 # if pt['agent_name'] in constraint_dict.keys():
                 #     constraint_dict[pt['agent_name']].vertex_constraints |= {v_constraint}
@@ -325,9 +335,10 @@ class Agent(threading.Thread):
                 #     constraint_dict[pt['agent_name']] = constraint
         if is_path_change:
             cost_pt_ls = sorted(cost_pt_ls, key=lambda x: x['t'] - self.crr_t)
-            print("[INFO] <<<< ", end='')
-            for i in cost_pt_ls:
-                print(str(i['t'] - self.crr_t), end=' ')
+            # print("[INFO] <<<< ", end='')
+            # for i in cost_pt_ls:
+            #     print(str(i['t'] - self.crr_t), end=' ')
+            # print()
             anytime_limitation = self.utils.anytime_func(cost_pt_ls[int(len(cost_pt_ls) // 2)]['t'] - self.crr_t)
             # anytime_limitation = self.utils.anytime_func(min_cost_pt)
         else:
@@ -335,19 +346,19 @@ class Agent(threading.Thread):
 
 
         # V2: Add round space of dynamic obstacles 
-        conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y']))
-        conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y']))
-        conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y']))
-        conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] + 1))
-        conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] - 1))
-        conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y'] + 1))
-        conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y'] - 1))
-        conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y'] + 1))
-        conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y'] - 1))
-        conflict_list.append((self.dyn_pos['x'] + 2, self.dyn_pos['y']))
-        conflict_list.append((self.dyn_pos['x'] - 2, self.dyn_pos['y']))
-        conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] + 2))
-        conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] - 2))
+        # conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y']))
+        # conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y']))
+        # conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y']))
+        # conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] + 1))
+        # conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] - 1))
+        # conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y'] + 1))
+        # conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y'] - 1))
+        # conflict_list.append((self.dyn_pos['x'] - 1, self.dyn_pos['y'] + 1))
+        # conflict_list.append((self.dyn_pos['x'] + 1, self.dyn_pos['y'] - 1))
+        # conflict_list.append((self.dyn_pos['x'] + 2, self.dyn_pos['y']))
+        # conflict_list.append((self.dyn_pos['x'] - 2, self.dyn_pos['y']))
+        # conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] + 2))
+        # conflict_list.append((self.dyn_pos['x'], self.dyn_pos['y'] - 2))
 
         return conflict_list, anytime_limitation, min_cost_pt
 
@@ -402,7 +413,7 @@ class Utils(object):
         return cost - 1
 
 def main():
-    global solution, alive_agent_thread_num, DYNAMIC_OBSTACLES
+    global solution, alive_agent_thread_num, DYNAMIC_OBSTACLES, agents
 
     # Parser part
     parser = argparse.ArgumentParser()

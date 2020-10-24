@@ -21,8 +21,8 @@ from contextlib import contextmanager
 
 import csv
 
-W_L = 1.05
-W_H = 1.005
+W_L = 1.1
+W_H = 1.1
 IS_TEST = False
 IS_DEBUG_LEVEL = False
 
