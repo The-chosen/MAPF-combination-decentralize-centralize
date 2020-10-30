@@ -1,0 +1,78 @@
+agents:
+-   start: [13, 0]
+    goal: [2, 10]
+    name: agent0
+-   start: [15, 1]
+    goal: [3, 9]
+    name: agent1
+-   start: [23, 15]
+    goal: [7, 21]
+    name: agent2
+-   start: [29, 22]
+    goal: [17, 25]
+    name: agent3
+-   start: [16, 22]
+    goal: [14, 13]
+    name: agent4
+-   start: [22, 20]
+    goal: [14, 19]
+    name: agent5
+-   start: [26, 14]
+    goal: [29, 26]
+    name: agent6
+-   start: [31, 5]
+    goal: [29, 23]
+    name: agent7
+-   start: [28, 20]
+    goal: [28, 25]
+    name: agent8
+-   start: [4, 31]
+    goal: [1, 12]
+    name: agent9
+-   start: [8, 11]
+    goal: [1, 18]
+    name: agent10
+-   start: [31, 9]
+    goal: [6, 7]
+    name: agent11
+-   start: [25, 3]
+    goal: [4, 29]
+    name: agent12
+-   start: [18, 25]
+    goal: [14, 11]
+    name: agent13
+-   start: [22, 5]
+    goal: [15, 19]
+    name: agent14
+-   start: [19, 10]
+    goal: [20, 24]
+    name: agent15
+-   start: [30, 21]
+    goal: [28, 4]
+    name: agent16
+-   start: [17, 30]
+    goal: [9, 7]
+    name: agent17
+-   start: [31, 24]
+    goal: [24, 0]
+    name: agent18
+-   start: [16, 5]
+    goal: [18, 4]
+    name: agent19
+map:
+    dimensions: [32, 32]
+    obstacles:
+    - !!python/tuple [2, 28]
+    - !!python/tuple [3, 16]
+    - !!python/tuple [10, 31]
+    - !!python/tuple [30, 31]
+    - !!python/tuple [2, 3]
+    - !!python/tuple [30, 5]
+    - !!python/tuple [29, 14]
+    - !!python/tuple [28, 16]
+    - !!python/tuple [5, 0]
+    - !!python/tuple [3, 21]
+obstacles:
+-   start: [0, 0]
+    goal: [32, 32]
+    name: obstacle0

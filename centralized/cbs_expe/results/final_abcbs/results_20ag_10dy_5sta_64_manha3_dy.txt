@@ -1,0 +1,7 @@
+Collision with: 0  |  Collision without: 1 
+Collision with: 5  |  Collision without: 2 
+Collision with: 0  |  Collision without: 0 
+Collision with: 0  |  Collision without: 2 
+Collision with: 0  |  Collision without: 1 
+Collision with: 0  |  Collision without: 1 
+Collision with: 3  |  Collision without: 0 

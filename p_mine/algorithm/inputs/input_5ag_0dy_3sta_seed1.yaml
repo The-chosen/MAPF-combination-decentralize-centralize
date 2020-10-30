@@ -37,9 +37,9 @@ agents:
 map:
     dimensions: [16, 8]
     obstacles:
-    - !!python/tuple [10, 1]
-    - !!python/tuple [6, 5]
-    - !!python/tuple [13, 3]
+    - !!python/tuple [6, 3]
+    - !!python/tuple [8, 5]
+    - !!python/tuple [12, 2]
 obstacles:
 -   start: [0, 0]
     goal: [32, 32]

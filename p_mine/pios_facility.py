@@ -249,11 +249,11 @@ class PiosFacility(RobotariumABC):
         # ])
 
         tform =np.array([
-            [841.8, -60.9, -0.1],
-            [-5.8, 923.9, -0.0],
-            [1016.2, 225.4, 1.5]])
+            [1114.8, 21.4, 0.1],
+            [31.8, 1075.4, 0.0],
+            [661.8, 308.1, 1.8]])
             # [934.8204 , -2.8397  , -0.0487], 
-            # [-35.2294 , 980.6578  , -0.0106], 
+            # [-35.2294 , 980.6578  , -0.0106],
             # [797.9180 , 402.2498   , 1.6045]        
         X = np.array([points[0], points[1], 1])        
         U = np.linalg.solve(tform.T,X.T).T
@@ -305,7 +305,8 @@ class PiosFacility(RobotariumABC):
             x = tmp[robot_id]['x']
             y = tmp[robot_id]['y']
             angle = tmp[robot_id]['angle']
-
+            print('x: ', x)
+            print('y: ', y)
             # print('[DEBUG]: Real robots ids: ', self.tf_id)
 
             location = self.pointsToWorld([x, y])

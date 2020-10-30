@@ -5,6 +5,8 @@ AStar search
 author: Ashwin Bose (@atb033)
 
 """
+import time
+TIME_LIMITATION = 300
 
 class AStar():
     def __init__(self, env):
@@ -20,7 +22,7 @@ class AStar():
             total_path.append(current)
         return total_path[::-1]
 
-    def search(self, agent_name):
+    def search(self, agent_name, START_TIME):
         """
         low level search 
         """
@@ -45,6 +47,10 @@ class AStar():
         f_score[initial_state] = self.admissible_heuristic(initial_state, agent_name)
 
         while open_set:
+            if time.time() - START_TIME >= TIME_LIMITATION:
+                return 'TIME'
+
+
             temp_dict = {open_item:f_score.setdefault(open_item, float("inf")) for open_item in open_set}
             # print('temp_dict: ' + str(list(temp_dict.keys())[0]))
             current = min(temp_dict, key=temp_dict.get)

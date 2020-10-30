@@ -29,7 +29,7 @@ pq = PriorityQueue()
 solution = None
 alive_agent_thread_num = None
 DYNAMIC_OBSTACLES = None
-INITIAL_RUNTIME = 15
+INITIAL_RUNTIME = 60
 DEFAULT_TIME_LIMITATION = 5
 
 INF_NUM = 999999999999999
@@ -37,10 +37,11 @@ R = 4
 THRESHOLD = 25
 TIME_LIMIT = 20
 
-TIMESTEP_TIME = 3
+TIMESTEP_TIME = 1
 
 IS_TEST = False # If it's now testing cbs for initialization, then True.
 
+RESULT_PTH = ''
 class Server(threading.Thread):
     """
     自定义一个类haha,必须要继承threading.Thread，下面必须要重写一个run()方法。
@@ -420,11 +421,14 @@ def main():
     parser.add_argument("param", help="input file containing map and obstacles")
     parser.add_argument("output", help="output file with the schedule")
     parser.add_argument("dynamic_obs", help="dynamic obs")
+    parser.add_argument("result_pth", help="path of result")
     if IS_TEST:
         parser.add_argument("N", help="number for experiments")
         parser.add_argument("agent_num", help="number of agents")
         parser.add_argument("obstacle_prob", help="probability of static obstacles")
     args = parser.parse_args()
+
+    RESULT_PTH = args.result_pth
 
     N, agent_num, obstacle_prob = None, None, None
     if IS_TEST:
@@ -446,7 +450,7 @@ def main():
 
     # Initial searching 
     env = Environment(dimension, agents, obstacles)
-    cbs = CBS(env, INITIAL_RUNTIME)
+    cbs = CBS(env, INITIAL_RUNTIME, RESULT_PTH)
     print('[INFO] Start initial searching ...')
     solution = cbs.search(N, agent_num, obstacle_prob)
     print('[INFO] Initial searching end')
@@ -459,8 +463,20 @@ def main():
                 # writer.writerow(["consume_time", "cost"])
                 writer.writerow(["Not found", "Not found"])
         print("[ERROR] Initial solution not found" ) 
+        f = open(RESULT_PTH, 'a')
+        f.write('NOT FOUND \n')
+        f.close()
         return
 
+    # To be deleted
+    # return  
+    print("[INFO] INITIAL FOUND SOLUTION: " + str(solution))
+    output = {}
+    output["schedule"] = solution
+    # output["cost"] = env.compute_solution_cost(solution)
+    with open(args.output, 'w') as output_yaml:
+        yaml.safe_dump(output, output_yaml) 
+    return
     if IS_TEST:
         print("[INFO] INITIAL FOUND SOLUTION: " + str(solution))
         output = {}

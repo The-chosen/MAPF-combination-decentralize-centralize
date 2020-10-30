@@ -343,8 +343,9 @@ class HighLevelNode(object):
 @limited_time: the time limitation in anytime algorithm
 '''
 class CBS(object):
-    def __init__(self, environment, limited_time=10, is_add_constraint=False, decentralized_constraint_list=None):
+    def __init__(self, environment, limited_time=10, result_pth = '', is_add_constraint=False, decentralized_constraint_list=None):
         self.env = environment 
+        self.result_pth = result_pth
         self.is_add_constraint = is_add_constraint
         self.decentralized_constraint_list = decentralized_constraint_list
         self.open_set = set()
@@ -530,7 +531,16 @@ class CBS(object):
                             is_first_succ = not is_first_succ
                             # Calc consumed time for the first success
                             succ_end_time = time.time()
+                            f = open(self.result_pth, 'a')
+                            f.write('time: ' + str(succ_end_time - succ_start_time) + '  cost:' + str(P.cost) + ' \n')
+                            f.close()
                             print("[SUCCESS TIME] Consume time: " + str(succ_end_time - succ_start_time))
+
+
+                            # To be deleted 
+                            # return 'solutions[len(solutions) - 1]'
+
+
                             if IS_TEST:
                                 with open('consume_time_stats/results_' + str(agent_num) + 'agents_' + \
                                     str(obstacle_prob) + '%.csv', 'a+', newline='') as csvfile:

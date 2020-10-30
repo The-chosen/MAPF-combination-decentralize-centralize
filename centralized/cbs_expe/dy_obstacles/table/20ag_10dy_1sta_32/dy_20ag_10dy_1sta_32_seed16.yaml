@@ -1,0 +1,41 @@
+schedule:
+  obstacle0:
+  - t: 0
+    x: 25
+    y: 29
+  obstacle1:
+  - t: 0
+    x: 29
+    y: 16
+  obstacle2:
+  - t: 0
+    x: 12
+    y: 27
+  obstacle3:
+  - t: 0
+    x: 24
+    y: 6
+  obstacle4:
+  - t: 0
+    x: 7
+    y: 26
+  obstacle5:
+  - t: 0
+    x: 18
+    y: 7
+  obstacle6:
+  - t: 0
+    x: 27
+    y: 9
+  obstacle7:
+  - t: 0
+    x: 15
+    y: 8
+  obstacle8:
+  - t: 0
+    x: 25
+    y: 27
+  obstacle9:
+  - t: 0
+    x: 25
+    y: 11

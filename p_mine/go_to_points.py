@@ -21,6 +21,7 @@ from algorithm.multi_thread_mapf import *
 from algorithm.cbs_mine import Environment, CBS
 from algorithm.a_star_mine import *
 from interface import *
+import threading
 # ########################### YY #########################################
 
 '''
@@ -41,7 +42,10 @@ GRID_LENGTH = 0.1
 
 TRAJ_FILE_PATH = './algorithm/outputs/output_5ag_0dy_3sta_seed1.yaml' # output
 INPUT_FILE_PATH = './algorithm/inputs/input_5ag_0dy_3sta_seed1.yaml'
-INITIAL_SEARCH_TIME = 5
+INITIAL_SEARCH_TIME = 2
+
+ips = ['192.168.159.11', '192.168.159.12', '192.168.159.13', \
+    '192.168.159.14', '192.168.159.15']
 # ########################### YY #########################################
 
 
@@ -458,26 +462,97 @@ class GoToPoints:
             y = (real_y - Y_START) // GRID_LENGTH + 1
         return (int(x), int(y))
 
-    def forward(self):
-        self.rb.set_velocities_data(0.048, 0.0)
-        time.sleep(2)
-        # self.rb.set_velocities_data(0.0, 0.0)
-    
-    def turn_left(self):
-        self.rb.set_velocities_data(0.0, 0.785)
+    def forward(self, rb):
+        rb.set_velocities_data(0.0475, 0.01)
         time.sleep(2)
         # self.rb.set_velocities_data(0.0, 0.0)
 
-    def turn_right(self):
-        self.rb.set_velocities_data(0.0, -0.785)
+    def back(self, rb):
+        rb.set_velocities_data(-0.048, 0.0)
+        time.sleep(2)
+
+    def turn_left(self, rb):
+        rb.set_velocities_data(0.0, 0.785)
         time.sleep(2)
         # self.rb.set_velocities_data(0.0, 0.0)
 
-    def still(self):
-        self.rb.set_velocities_data(0.0, 0.0)
+    def turn_right(self, rb):
+        rb.set_velocities_data(0.0, -0.785)
+        time.sleep(2)
+        # self.rb.set_velocities_data(0.0, 0.0)
+
+    def still(self, rb):
+        rb.set_velocities_data(0.0, 0.0)
         time.sleep(2)
 
-    def coord_traj2move(self, traj):
+    def pair2direction(self, pre, crr):
+        if pre[0] == crr[0] and pre[1] == crr[1]:
+            return '0'
+        elif pre[0] == crr[0] and pre[1] == crr[1] + 1:
+            return 'y+'
+        elif pre[0] == crr[0] and pre[1] == crr[1] - 1:
+            return 'y-'
+        elif pre[0] == crr[0] + 1 and pre[1] == crr[1]:
+            return 'x+'
+        elif pre[0] == crr[0] - 1 and pre[1] == crr[1]:
+            return 'x-'
+
+    def directions2turn(self, pre_idx, crr_idx, next_idx, traj):
+        pre_ = traj[pre_idx]
+        crr_ = traj[crr_idx]
+        next_ = traj[next_idx]
+        # pre & crr are the same
+        if self.pair2direction(pre_, crr_) == '0':
+            pre_idx_ = pre_idx
+            crr_idx_ = crr_idx
+            while True:
+                pre_idx_ = pre_idx_ - 1
+                crr_idx_ = crr_idx_ - 1
+                # still from 0 to now
+                if pre_idx_ <= 0:
+                    return 'still'
+                if self.pair2direction(traj[pre_idx_], traj[crr_idx_]) == '0':
+                    continue
+                else:
+                    return self.directions2turn(pre_idx_, crr_idx_, next_idx, traj)
+        elif self.pair2direction(pre_, crr_) == 'y+':
+            if self.pair2direction(crr_, next_) == '0' or self.pair2direction(crr_, next_) == 'y+':
+                return 'still'
+            elif self.pair2direction(crr_, next_) == 'x+':
+                return 'left'
+            elif self.pair2direction(crr_, next_) == 'x-':
+                return 'right'
+            else:
+                return 'back'
+        elif self.pair2direction(pre_, crr_) == 'x+':
+            if self.pair2direction(crr_, next_) == '0' or self.pair2direction(crr_, next_) == 'x+':
+                return 'still'
+            elif self.pair2direction(crr_, next_) == 'y-':
+                return 'left'
+            elif self.pair2direction(crr_, next_) == 'y+':
+                return 'right'
+            else:
+                return 'back'
+        elif self.pair2direction(pre_, crr_) == 'x-':
+            if self.pair2direction(crr_, next_) == '0' or self.pair2direction(crr_, next_) == 'x-':
+                return 'still'
+            elif self.pair2direction(crr_, next_) == 'y+':
+                return 'left'
+            elif self.pair2direction(crr_, next_) == 'y-':
+                return 'right'
+            else:
+                return 'back'
+        elif self.pair2direction(pre_, crr_) == 'y-':
+            if self.pair2direction(crr_, next_) == '0' or self.pair2direction(crr_, next_) == 'y-':
+                return 'still'
+            elif self.pair2direction(crr_, next_) == 'x-':
+                return 'left'
+            elif self.pair2direction(crr_, next_) == 'x+':
+                return 'right'
+            else:
+                return 'back'
+
+    def coord_traj2move(self, traj, rb):
         traj_length = len(traj)
         cmd_ls = []
         for i, pt in enumerate(traj):
@@ -485,34 +560,77 @@ class GoToPoints:
             if i == traj_length - 1:
                 cmd_ls.append('still')
                 cmd_ls.append('still')
-            elif i== 0:
-                crr_ = pt
-                next_ = traj[i + 1]
-                if next_[1] == crr_[1]:
-                    if next_[0] == crr_[0] + 1:
-                        cmd_ls.append('still')
-                        cmd_ls.append('still')
-                    elif next_[0] == crr_[0] - 1:
-                        cmd_ls.append('right')
-                        cmd_ls.append('right')
-                    else:
-                        cmd_ls.append('still')
-                        cmd_ls.append('still')
-                elif next_[0] == crr_[0]:
-                    if next_[1] == crr_[1] + 1:
-                        cmd_ls.append('right')
-                        cmd_ls.append('still')
-                    elif next_[1] == crr_[1] - 1:
-                        cmd_ls.append('left')
-                        cmd_ls.append('still')
-                    else:
-                        cmd_ls.append('still')
-                        cmd_ls.append('still')   
+                continue
+            
+            crr_ = pt
+            next_ = traj[i + 1]
+            
+            if i == 0:
+                if self.pair2direction(crr_, next_) == '0':
+                    cmd_ls.append('still')
+                    cmd_ls.append('still')
+                else:
+                    cmd_ls.append('still')
+                    cmd_ls.append('forward')
+                continue
+            turn = self.directions2turn(i - 1, i, i + 1, traj)
+
+            if turn == 'back':
+                cmd_ls.append('still')
+                cmd_ls.append(turn)
+                continue
+
+            if self.pair2direction(crr_, next_) == '0':
+                cmd_ls.append(turn)
+                cmd_ls.append('still')
             else:
-                crr_ = pt
-                pre_ = traj[i - 1]
-                next_ = traj[i + 1]
+                cmd_ls.append(turn)
                 cmd_ls.append('forward')
+
+        for cmd in cmd_ls:
+            if cmd == 'still':
+                self.still(rb)
+            elif cmd == 'back':
+                self.back(rb)
+            elif cmd == 'forward':
+                self.forward(rb)
+            elif cmd == 'left':
+                self.turn_left(rb)
+            elif cmd == 'right':
+                self.turn_right(rb)
+        
+        return cmd_ls
+
+    
+
+            # elif i== 0:
+            #     crr_ = pt
+            #     next_ = traj[i + 1]
+            #     if next_[1] == crr_[1]:
+            #         if next_[0] == crr_[0] + 1:
+            #             cmd_ls.append('still')
+            #             cmd_ls.append('still')
+            #         elif next_[0] == crr_[0] - 1:
+            #             cmd_ls.append('right')
+            #             cmd_ls.append('right')
+            #         else:
+            #             cmd_ls.append('still')
+            #             cmd_ls.append('still')
+            #     elif next_[0] == crr_[0]:
+            #         if next_[1] == crr_[1] + 1:
+            #             cmd_ls.append('right')
+            #             cmd_ls.append('still')
+            #         elif next_[1] == crr_[1] - 1:
+            #             cmd_ls.append('left')
+            #             cmd_ls.append('still')
+            #         else:
+            #             cmd_ls.append('still')
+            #             cmd_ls.append('still')   
+            # else:
+            #     crr_ = pt
+            #     pre_ = traj[i - 1]
+            #     next_ = traj[i + 1]
+            #     cmd_ls.append('forward')
 
                 
 
@@ -596,6 +714,19 @@ class GoToPoints:
     # Get positions of static obs
     def get_pos_static_obs(self):
         return self.facility.get_static_obs_position()
+
+    # Use my move
+    def move_grid(self):
+        threads = []
+        self.calc_initial_traj()
+        for agent in range(self.num_agents):
+            rb = PiRobot('0', ips[agent])
+            agent_name = 'agent' + str(agent)
+            agent_traj = self.traj[agent_name]
+            traj = [(point['x'], point['y']) for point in agent_traj]
+            threads.append(threading.Thread(target=self.coord_traj2move, args=(traj, rb)))
+        for thread in threads:
+            thread.start()
 
 
     # Generate traj
@@ -734,7 +865,8 @@ if __name__ == "__main__":
         if sys.argv[1] == 'y':
             # nav.go_mine_try()
             # nav.move_traj()
-            nav.move_trajectory()
+            # nav.move_trajectory()
+            nav.move_grid()
         if sys.argv[1] == 'm':
             nav.get()
         if sys.argv[1] == 'g':
@@ -747,25 +879,22 @@ if __name__ == "__main__":
             # nav.rb.set_velocities_data(0.05, 0.0)
             # time.sleep(2)
             # nav.rb.set_velocities_data(0.0, 0.0)
-            # nav.forward()
-            # nav.turn_right()
+            
+            # nav.still()
             # nav.forward()
             # nav.still()
-            # nav.turn_left()
-            # nav.forward()
-            # nav.turn_right()
-            # nav.forward()
-            # nav.turn_left()
-            # nav.forward()
-            # nav.turn_right()
-            # nav.forward()
-            # nav.turn_left()
-            # nav.forward()
-            # nav.turn_right()
-            # nav.forward()
-            # nav.turn_left()
-            # nav.forward()
+            # nav.back()
             # nav.still()
+            # nav.forward()
+            # nav.turn_left()
+            # nav.forward()
+            rb = PiRobot('1', '192.168.159.19')
+            # traj = [(0, 0), (0, 1), (0, 2), (1, 2), (1, 3), (1, 4), (2, 4), (3, 4), (4, 4), (4, 5), (4, 5), (4, 6)]
+            traj = [(7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1)]
+            nav.coord_traj2move(traj, rb)
+            
+            
+      
 
             # s = time.time()
             # rb = PiRobot('2','192.168.159.14')
@@ -781,12 +910,12 @@ if __name__ == "__main__":
             # time.sleep(2)
             # rb.set_velocities_data(0.0,0.0)
 
-            rb = PiRobot('2','192.168.159.14')
+            # rb = PiRobot('2','192.168.159.14')
             # rb.set_velocities_data(-0.05, 0.0)
             # time.sleep(2)
-            rb.set_velocities_data(0.0, -0.785)
-            time.sleep(2)
-            rb.set_velocities_data(0.0, 0.0)
+            # rb.set_velocities_data(0.0, -0.785)
+            # time.sleep(2)
+            # rb.set_velocities_data(0.0, 0.0)
             
             
             

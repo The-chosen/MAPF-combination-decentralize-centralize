@@ -5,7 +5,7 @@ agents:
 -   start: [15, 7]
     goal: [15, 6]
     name: agent1
--   start: [6, 1]
+-   start: [5, 1]
     goal: [15, 0]
     name: agent2
 -   start: [12, 6]

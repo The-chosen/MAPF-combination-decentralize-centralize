@@ -1,0 +1,5 @@
+schedule:
+  obstacle0:
+  - t: 0
+    x: 28
+    y: 2

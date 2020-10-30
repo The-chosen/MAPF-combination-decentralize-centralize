@@ -1,0 +1,105 @@
+agents:
+-   start: [16, 22]
+    goal: [1, 29]
+    name: agent0
+-   start: [15, 3]
+    goal: [10, 7]
+    name: agent1
+-   start: [23, 30]
+    goal: [15, 24]
+    name: agent2
+-   start: [6, 15]
+    goal: [0, 13]
+    name: agent3
+-   start: [26, 17]
+    goal: [11, 24]
+    name: agent4
+-   start: [10, 4]
+    goal: [8, 28]
+    name: agent5
+-   start: [8, 8]
+    goal: [0, 0]
+    name: agent6
+-   start: [13, 13]
+    goal: [10, 10]
+    name: agent7
+-   start: [18, 20]
+    goal: [12, 13]
+    name: agent8
+-   start: [11, 12]
+    goal: [24, 19]
+    name: agent9
+-   start: [1, 23]
+    goal: [26, 10]
+    name: agent10
+-   start: [9, 16]
+    goal: [4, 21]
+    name: agent11
+-   start: [19, 0]
+    goal: [21, 4]
+    name: agent12
+-   start: [19, 22]
+    goal: [19, 30]
+    name: agent13
+-   start: [20, 11]
+    goal: [30, 30]
+    name: agent14
+-   start: [11, 3]
+    goal: [16, 1]
+    name: agent15
+-   start: [22, 25]
+    goal: [1, 26]
+    name: agent16
+-   start: [23, 24]
+    goal: [0, 28]
+    name: agent17
+-   start: [2, 11]
+    goal: [12, 7]
+    name: agent18
+-   start: [15, 29]
+    goal: [22, 22]
+    name: agent19
+map:
+    dimensions: [32, 32]
+    obstacles:
+    - !!python/tuple [16, 29]
+    - !!python/tuple [6, 23]
+    - !!python/tuple [18, 2]
+    - !!python/tuple [27, 5]
+    - !!python/tuple [13, 21]
+    - !!python/tuple [23, 9]
+    - !!python/tuple [21, 17]
+    - !!python/tuple [5, 19]
+    - !!python/tuple [20, 19]
+    - !!python/tuple [11, 5]
+obstacles:
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle0
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle1
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle2
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle3
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle4
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle5
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle6
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle7
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle8
+-   start: [0, 0]
+    goal: [1000, 1000]
+    name: obstacle9
