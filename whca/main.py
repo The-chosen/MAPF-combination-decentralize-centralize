@@ -46,14 +46,19 @@ def get_obs_starts_goals_from_file(input_file):
 
 
 def calc_path(starts, goals, shape, obstacles, start_time, is_initial = False):
+
     timestep = TIMESTEP
     if is_initial:
         timestep = INITIAL_TIME
 
     cost_map = CostMapGrid(shape, obstacles)
 
-    whca = WHCA(starts, goals, cost_map, window=5, visualization=False)
+    is_time = [0]
+    whca = WHCA(starts, goals, cost_map, start_time, timestep, is_time, window=5, visualization=False)
+    if is_time[0] == 'TIME':
+        return 'TIME'
 
+    print("Start run whca ...")
     agent_solver = whca.run(start_time, timestep)
 
     if agent_solver == 'TIME':
@@ -72,11 +77,16 @@ def calc_path(starts, goals, shape, obstacles, start_time, is_initial = False):
     # print('trajectories: ' + str(trajectories))
     return trajectories
 
-def dy_pos_blur(x, y, seed):
-    blur_length = 1
+def dy_pos_blur(x, y, seed, shape):
+    blur_length = 5
     blur_area = [[x + i, y + j] for i in range(- blur_length, blur_length + 1) for j in range(- blur_length, blur_length + 1)]
+    
     random.seed(seed)
-    return random.choice(blur_area)
+    while True:
+        pt = random.choice(blur_area)
+        if (pt[0] >= 0 and pt[0] <= shape - 1) and (pt[1] >= 0 and pt[1] <= shape - 1):
+            return pt
+    
 
 def replanning():
     parser = argparse.ArgumentParser()
@@ -118,38 +128,40 @@ def replanning():
 
     print('[INFO] Found solution. ')
 
-    for t in range(max_t):
-        start_time = time.time()
+    if 'without' not in args.dynamic_obs:
 
-        dy_obs_positions = []
-        for pth in dy_obs['schedule'].values():
-            if t <= len(pth) - 1:
-                dy_obs_positions.append(dy_pos_blur(pth[t]['x'], pth[t]['y'], args.seed))
-            else:
-                dy_obs_positions.append(dy_pos_blur(pth[len(pth) - 1]['x'], pth[len(pth) - 1]['y'], args.seed))
-        
-        new_start = []
-        print('Time: ' + str(t))
-        for pth in solution.values():
-            if t + 1 <= len(pth) - 1:
-                # print(pth)
-                new_start.append([pth[t + 1]['x'], pth[t + 1]['y']])
-            else:
-                new_start.append([pth[len(pth) - 1]['x'], pth[len(pth) - 1]['y']])
+        for t in range(max_t):
+            start_time = time.time()
 
-        traj = calc_path(new_start, goals, shape, obstacles, start_time)
-        if traj == 'TIME':
-            print('[WARNING] Time exceed! No traj found...')
-            continue
-
-        if not traj:
-            print("[WARNING] NOT FOUND!")
-        else:
-            for i, pth in enumerate(solution.values()):
+            dy_obs_positions = []
+            for pth in dy_obs['schedule'].values():
                 if t <= len(pth) - 1:
-                    solution['agent' + str(i)] = solution['agent' + str(i)]\
-                        [:t + 1] + [{'t': int(str(j + t + 1)), 'x': int(str(pt[0])), 'y': int(str(pt[1]))} for j, pt in enumerate(traj[i])]
-            print('[INFO] Found solution. ')
+                    dy_obs_positions.append(dy_pos_blur(pth[t]['x'], pth[t]['y'], args.seed, shape))
+                # else:
+                #     dy_obs_positions.append(dy_pos_blur(pth[len(pth) - 1]['x'], pth[len(pth) - 1]['y'], args.seed))
+            
+            new_start = []
+            print('Time: ' + str(t))
+            for pth in solution.values():
+                if t + 1 <= len(pth) - 1:
+                    # print(pth)
+                    new_start.append([pth[t + 1]['x'], pth[t + 1]['y']])
+                else:
+                    new_start.append([pth[len(pth) - 1]['x'], pth[len(pth) - 1]['y']])
+            print('Start common computing ...')
+            traj = calc_path(new_start, goals, shape, obstacles + dy_obs_positions, start_time)
+            if traj == 'TIME':
+                print('[WARNING] Time exceed! No traj found...')
+                continue
+
+            if not traj:
+                print("[WARNING] NOT FOUND!")
+            else:
+                for i, pth in enumerate(solution.values()):
+                    if t <= len(pth) - 1:
+                        solution['agent' + str(i)] = solution['agent' + str(i)]\
+                            [:t + 1] + [{'t': int(str(j + t + 1)), 'x': int(str(pt[0])), 'y': int(str(pt[1]))} for j, pt in enumerate(traj[i])]
+                print('[INFO] Found solution. ')
 
     output = {}
     output['schedule'] = solution

@@ -1,0 +1,12 @@
+Collision with: 8  |  Collision without: 12 
+Collision with: 12  |  Collision without: 23 
+Collision with: 11  |  Collision without: 31 
+Collision with: 13  |  Collision without: 26 
+Collision with: 20  |  Collision without: 20 
+Collision with: 14  |  Collision without: 30 
+Collision with: 14  |  Collision without: 25 
+Collision with: 20  |  Collision without: 14 
+Collision with: 9  |  Collision without: 6 
+Collision with: 11  |  Collision without: 25 
+Collision with: 7  |  Collision without: 24 
+Collision with: 18  |  Collision without: 24 

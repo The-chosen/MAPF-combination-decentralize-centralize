@@ -10,7 +10,7 @@ from visualization import Graph
 import time
 
 class WHCA(object):
-    def __init__(self, starts, goals, cost_map, window, agent_radius=0.2, visualization=False):
+    def __init__(self, starts, goals, cost_map, start_time=None, timestep=None, is_TIME=None, window=5, agent_radius=0.2, visualization=False):
         self.original_cost_map = cost_map
         self.cost_map = []
 
@@ -29,9 +29,18 @@ class WHCA(object):
             raise Exception("starts or goals should have same number of elements as number of agent")
 
         for i in range(len(starts)):
+            if start_time:
+                if time.time() - start_time >= timestep:
+                    is_TIME[0] = 'TIME'
             agent = Agent(Node(np.array(starts[i])), Node(np.array(goals[i])))
             rra_star = RRAStar(agent, self.original_cost_map)
-            rra_star.run_initial()
+
+            if start_time:
+                time_ = rra_star.run_initial(start_time, timestep)
+            else:
+                rra_star.run_initial(start_time, timestep)
+            if time_ == 'TIME':
+                is_TIME[0] = 'TIME'
             self.agent_solver.append((agent, rra_star))
 
     def reset_cost_map(self, cost_map):
@@ -145,6 +154,7 @@ class WHCA(object):
             success &= self.agent_solver[i][0].trajectory[-1] == self.agent_solver[i][0].goal
 
         while not success:
+
             if time.time() - start_time >= timestep:
                 return 'TIME'
             # print("before: {}".format(self.agents))
@@ -165,30 +175,41 @@ class WHCA(object):
 
             success = True
 
+
             for i in range(len(self.agent_solver)):
+                if time.time() - start_time >= timestep:
+                    return 'TIME'
                 success &= self.agent_solver[i][0].trajectory[-1] == self.agent_solver[i][0].goal
 
             if self.visualization:
                 trajectories = []
                 for i in range(len(self.agent_solver)):
+                    if time.time() - start_time >= timestep:
+                        return 'TIME'
                     print("{},{}".format(self.agent_solver[i][0].trajectory[-5].position[0],
                                          self.agent_solver[i][0].trajectory[-5].position[1]), end=" / ")
                     trajectories.append([ [self.agent_solver[i][0].trajectory[-5].position[0],
                                            self.agent_solver[i][0].trajectory[-5].position[1]] ])
                 print()
                 for i in range(len(self.agent_solver)):
+                    if time.time() - start_time >= timestep:
+                        return 'TIME'
                     print("{},{}".format(self.agent_solver[i][0].trajectory[-4].position[0],
                                          self.agent_solver[i][0].trajectory[-4].position[1]), end=" / ")
                     trajectories[i].append([self.agent_solver[i][0].trajectory[-4].position[0],
                                          self.agent_solver[i][0].trajectory[-4].position[1]])
                 print()
                 for i in range(len(self.agent_solver)):
+                    if time.time() - start_time >= timestep:
+                        return 'TIME'
                     print("{},{}".format(self.agent_solver[i][0].trajectory[-3].position[0],
                                          self.agent_solver[i][0].trajectory[-3].position[1]), end=" / ")
                     trajectories[i].append([self.agent_solver[i][0].trajectory[-3].position[0],
                                          self.agent_solver[i][0].trajectory[-3].position[1]])
                 print()
                 for i in range(len(self.agent_solver)):
+                    if time.time() - start_time >= timestep:
+                        return 'TIME'
                     print("{},{}".format(self.agent_solver[i][0].trajectory[-2].position[0],
                                          self.agent_solver[i][0].trajectory[-2].position[1]), end=" / ")
                     trajectories[i].append([self.agent_solver[i][0].trajectory[-2].position[0],
@@ -196,6 +217,8 @@ class WHCA(object):
                 print()
 
                 for i in range(len(self.agent_solver)):
+                    if time.time() - start_time >= timestep:
+                        return 'TIME'
                     print("{},{}".format(self.agent_solver[i][0].trajectory[-1].position[0],
                                          self.agent_solver[i][0].trajectory[-1].position[1]), end=" / ")
                     trajectories[i].append([self.agent_solver[i][0].trajectory[-1].position[0],

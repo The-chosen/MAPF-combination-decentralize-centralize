@@ -3,7 +3,7 @@ import heapq
 from node import Node
 from utils import DistanceMethod, calculate_distance, get_neighbors_reverse
 from visualization import Graph
-
+import time
 
 class RRAStar(object):
     def __init__(self, agent, cost_map, show_graph=False):
@@ -40,13 +40,20 @@ class RRAStar(object):
     def update_cost_map(self, cost_map):
         self.cost_map = cost_map
 
-    def run_initial(self):
+    def run_initial(self, start_time=None, timestep=None):
         success = False
+
         for test_tuple in self.agent.closed_set:
+            if start_time:
+                if time.time() - start_time >= timestep:
+                    return 'TIME'
             if test_tuple[1] == self.goal_node:
                 return True
 
         while not success:
+            if start_time:
+                if time.time() - start_time >= timestep:
+                    return 'TIME'
             success = self.step(self.goal_node)
 
     def run_resume(self, required_node):

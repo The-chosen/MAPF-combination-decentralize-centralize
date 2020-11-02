@@ -20,6 +20,7 @@ class CostMapGrid(object):
         self.shape = np.array([shape, shape])
 
         for obs in obstacles:
+            # print(obs)
             self.cost_map[tuple(obs)] = 1
 
         self.obstacles = obstacles

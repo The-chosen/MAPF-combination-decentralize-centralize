@@ -721,7 +721,7 @@ def dy_pos_blur(x, y, seed):
 
 
 def replanning():
-    INITIAL_RUNTIME = 2
+    INITIAL_RUNTIME = 10
     TIMESTEP = 4
 
     parser = argparse.ArgumentParser()
