@@ -267,14 +267,14 @@ class ABCBS(object):
 
 def print_parser(parser, opt):
     message = ''
-    message += '----------------- Options ---------------\n'
+    message += '\n----------------- Options ---------------\n'
     for k, v in sorted(vars(opt).items()):
         comment = ''
         default = parser.get_default(k)
         if v != default:
             comment = '\t[default: %s]' % str(default)
         message += '{:>25}: {:<30}{}\n'.format(str(k), str(v), comment)
-    message += '----------------- End -------------------'
+    message += '----------------- End -------------------\n'
     print(message)
 
 def main():
